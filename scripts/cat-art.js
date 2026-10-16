@@ -275,6 +275,8 @@ for(let i=0;i<4;i++)stage('tail_drag_'+i,c=>{
   const tip=[[26,28],[27,27],[27,26],[25,27]][i];motionTail(c,[[20,22],[23,24],[24,27],tip]);
 });
 for(const source of ['face_side_open','face_side_half','face_side_closed','face_quarter_open','face_quarter_closed','face_back_quarter','torso_quarter_0','torso_back_quarter','gait_2',...Array.from({length:3},(_,i)=>'gait_2_tail_'+(i+1)),...Array.from({length:4},(_,i)=>'tail_sit_'+i)])mirror(source+'_right',source);
+require('./cat-extra-art')({art,stage,canvases,leg});
+require('./cat-daily-art')({art,stage,canvases,leg});
 const tailCycles={};
 for(const id of Object.keys(sprites))if(sprites[id+'_tail_1'])tailCycles[id]=[id,id+'_tail_1',id+'_tail_2',id+'_tail_3',id+'_tail_2',id+'_tail_1'];
 tailCycles.gait_2_right=['gait_2_right',...Array.from({length:3},(_,i)=>'gait_2_tail_'+(i+1)+'_right'),'gait_2_tail_2_right','gait_2_tail_1_right'];

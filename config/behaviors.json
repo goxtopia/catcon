@@ -77,6 +77,34 @@
       {
         "clip": "drink",
         "weight": 1
+      },
+      {
+        "clip": "knead",
+        "weight": 2
+      },
+      {
+        "clip": "box_peek",
+        "weight": 1
+      },
+      {
+        "clip": "leaf_catch",
+        "weight": 1
+      },
+      {
+        "clip": "bug_watch",
+        "weight": 1
+      },
+      {
+        "clip": "fish_hug",
+        "weight": 2
+      },
+      {
+        "clip": "warm_cup",
+        "weight": 1
+      },
+      {
+        "clip": "pencil_nudge",
+        "weight": 1
       }
     ],
     "coding": [
@@ -99,6 +127,18 @@
       {
         "clip": "sit_groom",
         "weight": 1
+      },
+      {
+        "clip": "knead",
+        "weight": 2
+      },
+      {
+        "clip": "bug_watch",
+        "weight": 1
+      },
+      {
+        "clip": "warm_cup",
+        "weight": 2
       }
     ],
     "video": [
@@ -116,6 +156,22 @@
       },
       {
         "clip": "loaf",
+        "weight": 1
+      },
+      {
+        "clip": "knead",
+        "weight": 1
+      },
+      {
+        "clip": "leaf_catch",
+        "weight": 1
+      },
+      {
+        "clip": "fish_hug",
+        "weight": 2
+      },
+      {
+        "clip": "warm_cup",
         "weight": 1
       }
     ],
@@ -135,6 +191,18 @@
       {
         "clip": "sleep",
         "weight": 1
+      },
+      {
+        "clip": "knead",
+        "weight": 2
+      },
+      {
+        "clip": "pencil_nudge",
+        "weight": 2
+      },
+      {
+        "clip": "warm_cup",
+        "weight": 1
       }
     ],
     "browsing": [
@@ -153,6 +221,22 @@
       {
         "clip": "sit_groom",
         "weight": 1
+      },
+      {
+        "clip": "box_peek",
+        "weight": 2
+      },
+      {
+        "clip": "leaf_catch",
+        "weight": 2
+      },
+      {
+        "clip": "pencil_nudge",
+        "weight": 1
+      },
+      {
+        "clip": "warm_cup",
+        "weight": 1
       }
     ],
     "chat": [
@@ -167,6 +251,18 @@
       {
         "clip": "sit_tilt",
         "weight": 2
+      },
+      {
+        "clip": "box_peek",
+        "weight": 1
+      },
+      {
+        "clip": "bug_watch",
+        "weight": 1
+      },
+      {
+        "clip": "fish_hug",
+        "weight": 1
       }
     ],
     "gaming": [
@@ -185,8 +281,59 @@
       {
         "clip": "drink",
         "weight": 1
+      },
+      {
+        "clip": "fish_hug",
+        "weight": 1
       }
     ]
   },
-  "contextChangeSeconds": 1
+  "contextChangeSeconds": 1,
+  "followUps": {
+    "knead": {
+      "chance": 0.8,
+      "choices": [
+        {
+          "clip": "sleep",
+          "weight": 4
+        },
+        {
+          "clip": "sleep_stretch",
+          "weight": 1
+        }
+      ]
+    },
+    "fish_hug": {
+      "chance": 0.65,
+      "choices": [
+        {
+          "clip": "sleep",
+          "weight": 4
+        },
+        {
+          "clip": "sleep_stretch",
+          "weight": 1
+        }
+      ]
+    }
+  },
+  "independentActions": [
+    {
+      "clip": "break_sign",
+      "intervalSeconds": [
+        1080,
+        1320
+      ],
+      "chance": 0.8,
+      "contexts": [
+        "idle",
+        "coding",
+        "video",
+        "office",
+        "browsing",
+        "chat"
+      ],
+      "quietGames": true
+    }
+  ]
 }

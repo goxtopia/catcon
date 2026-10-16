@@ -176,6 +176,7 @@ namespace Catcon {
                     engine=new BehaviorEngine(s,config,81);var samples=new HashSet<string>();for(int i=0;i<800;i++)samples.Add(engine.SelectAutonomousAction(context,false));
                     check(samples.Any(id=>config.contexts[context].Any(x=>x.clip==id))&&samples.Any(id=>config.contexts["idle"].Any(x=>x.clip==id)&&!config.contexts[context].Any(x=>x.clip==id))&&samples.All(id=>s.clips[id].motion==null),"Every context mixes everyday actions while movement is disabled: "+context);
                 }
+                BehaviorRuleValidation.Run(s,root,check);
                 string first=s.poses["sit"].First(l=>l.id=="head").sprite;using(var img=a.RenderAt("sit",.6,false)){}check(s.poses["sit"].First(l=>l.id=="head").sprite==first,"Rendering does not mutate base poses");
                 bool rejected=false;try{var bad=Json.Read<Skin>(Path.Combine(root,"assets","skins","mikan","skin.json"));bad.clips["sit"].pose="missing";bad.Validate();}catch(InvalidDataException){rejected=true;}check(rejected,"Broken skin references rejected");
                 rejected=false;try{var bad=Json.Read<Skin>(Path.Combine(root,"assets","skins","mikan","skin.json"));bad.clips["../escape"]=bad.clips["sit"];bad.Validate();}catch(InvalidDataException){rejected=true;}check(rejected,"Animation export identifiers cannot escape their directory");

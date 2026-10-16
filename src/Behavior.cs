@@ -9,30 +9,31 @@ namespace Catcon {
         public bool Movement=true,Reactions=true,QuietGames=true;
     }
     public sealed class BehaviorEngine {
-        readonly BehaviorConfig config;readonly Random random;
+        readonly BehaviorConfig config;readonly Random random;readonly BehaviorRules rules;
         readonly Queue<double> startles=new Queue<double>();
         public readonly Animator Animation;
         public double X,Y;public int PixelScale=3;
         public bool Paused,Dragging;
         public string LastEvent {get;private set;}public string Context {get;private set;}
-        double clock,nextDecision,lockedUntil,lastStartle=-100,dwell;
+        double clock,activityClock,nextDecision,lockedUntil,lastStartle=-100,dwell;
         Point previousCursor;bool hadCursor;
         PointF? target,arrivalTarget;PointF leapStart;string motionClip;
         public bool Moving {get{return target.HasValue;}}
         public int Width {get{return Animation.Skin.canvas*PixelScale;}}
-        public BehaviorEngine(Skin skin,BehaviorConfig config,int seed){this.config=config;random=new Random(seed);Animation=new Animator(skin);Animation.Play(config.events["idle"]);Context="idle";LastEvent="刚刚醒来";nextDecision=8;}
+        public BehaviorEngine(Skin skin,BehaviorConfig config,int seed){this.config=config;random=new Random(seed);rules=new BehaviorRules(skin,config,random);Animation=new Animator(skin);Animation.Play(config.events["idle"]);Context="idle";LastEvent="刚刚醒来";nextDecision=8;}
         public void Emit(string ev){Play(config.events[ev],true);LastEvent=ev;}
-        public void Play(string clip,bool protect){Animation.Play(clip);target=null;arrivalTarget=null;motionClip=null;dwell=0;lockedUntil=protect?clock+Animation.Clip.seconds:clock;nextDecision=clock+Animation.Clip.seconds;}
+        public void Play(string clip,bool protect){Animation.Play(clip);rules.Played(clip,activityClock);target=null;arrivalTarget=null;motionClip=null;dwell=0;lockedUntil=protect?clock+Animation.Clip.seconds:clock;nextDecision=clock+Animation.Clip.seconds;}
         public void BeginDrag(){Dragging=true;Emit("drag");}
         public void EndDrag(){Dragging=false;Emit("release");hadCursor=false;}
-        public void Advance(double dt,InputFrame input){
+        public void Advance(double dt,InputFrame input,double? elapsedSeconds=null){
             if(dt<=0)return;
             if(Paused){previousCursor=input.Cursor;hadCursor=true;return;}
-            clock+=dt;Animation.Advance(dt);
+            clock+=dt;activityClock+=Math.Max(0,elapsedSeconds??dt);Animation.Advance(dt);
             if(Context!=input.Context)nextDecision=Math.Min(nextDecision,Math.Max(clock,lockedUntil)+config.contextChangeSeconds);
             Context=input.Context;
+            bool quiet=input.QuietGames&&Context=="gaming",allowMovement=input.Movement&&!quiet;
+            rules.Advance(activityClock,Context,allowMovement,quiet);
             if(Dragging){previousCursor=input.Cursor;hadCursor=true;return;}
-            bool quiet=input.QuietGames&&Context=="gaming";
             if(!input.Movement&&Animation.Clip.motion!=null&&Animation.Clip.motion!="cursor"&&Animation.Clip.motion!="leap") {target=null;Play(config.events["idle"],false);}
             if(!quiet&&input.Reactions&&hadCursor&&clock>=lockedUntil){
                 double cx=X+Width*.5,cy=Y+Width*.58;
@@ -47,8 +48,10 @@ namespace Catcon {
             }
             previousCursor=input.Cursor;hadCursor=true;
             UpdateMotion(dt,input,quiet);
-            if(clock>=nextDecision&&clock>=lockedUntil&&!Moving){
-                Play(SelectAutonomousAction(Context,input.Movement&&!quiet),false);
+            if(clock>=nextDecision&&clock>=lockedUntil&&!Moving&&(!rules.HasFollowUp(Animation.Current)||Animation.Elapsed>=Animation.Clip.seconds)){
+                string followUp=Animation.Elapsed>=Animation.Clip.seconds?rules.FollowUp(Animation.Current,allowMovement):null;
+                string independent=followUp==null?rules.TakeIndependent(Context,allowMovement,quiet):null;
+                Play(followUp??independent??SelectAutonomousAction(Context,allowMovement),followUp!=null||independent!=null);
                 nextDecision=clock+Math.Max(Animation.Clip.seconds,config.decisionSeconds[0]+random.NextDouble()*(config.decisionSeconds[1]-config.decisionSeconds[0]));
             }
         }

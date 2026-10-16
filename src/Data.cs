@@ -47,6 +47,7 @@ namespace Catcon {
         public int takeoffFrame {get;set;} public int landingFrame {get;set;}
     }
     public sealed class Clip {
+        public double? previewSeconds {get;set;}
         public string label {get;set;} public string pose {get;set;} public double seconds {get;set;}
         public int frameMs {get;set;} public List<Dictionary<string,LayerPatch>> frames {get;set;}
         public List<int> frameDurations {get;set;} public string playback {get;set;}
@@ -88,6 +89,7 @@ namespace Catcon {
             }
             foreach(var c in clips) {
                 Require(IsIdentifier(c.Key),"Invalid clip identifier: "+c.Key);
+                Require(!c.Value.previewSeconds.HasValue||(c.Value.previewSeconds>=0&&c.Value.previewSeconds<=c.Value.seconds),"Invalid preview time: "+c.Key);
                 Require(poses.ContainsKey(c.Value.pose),"Missing pose: "+c.Key);Require(c.Value.seconds>0&&c.Value.frameMs>=30&&c.Value.frames!=null&&c.Value.frames.Count>0,"Invalid clip timing: "+c.Key);
                 Require(c.Value.playback==null||c.Value.playback=="loop"||c.Value.playback=="once","Invalid playback mode: "+c.Key);
                 if(c.Value.frameDurations!=null)Require(c.Value.frameDurations.Count==c.Value.frames.Count&&c.Value.frameDurations.All(ms=>ms>=30&&ms<=60000),"Invalid frame durations: "+c.Key);
@@ -118,8 +120,17 @@ namespace Catcon {
         public void Dispose() { foreach(var b in Images.Values)b.Dispose();Images.Clear(); }
     }
     public sealed class Choice {public string clip {get;set;} public int weight {get;set;}}
+    public sealed class FollowUpRule {
+        public double chance {get;set;}public List<Choice> choices {get;set;}
+    }
+    public sealed class IndependentAction {
+        public IndependentAction(){quietGames=true;}
+        public string clip {get;set;}public double chance {get;set;}
+        public double[] intervalSeconds {get;set;}public string[] contexts {get;set;}
+        public bool quietGames {get;set;}
+    }
     public sealed class BehaviorConfig {
-        public BehaviorConfig(){contextChance=.7;}
+        public BehaviorConfig(){contextChance=.7;followUps=new Dictionary<string,FollowUpRule>();independentActions=new List<IndependentAction>();}
         public int schemaVersion {get;set;} public double[] decisionSeconds {get;set;}
         public double contextChangeSeconds {get;set;}
         public double contextChance {get;set;}
@@ -128,6 +139,8 @@ namespace Catcon {
         public double startleSpeed {get;set;} public double startleCooldown {get;set;}
         public int repeatedStartleCount {get;set;} public double repeatedStartleWindow {get;set;}
         public Dictionary<string,string> events {get;set;} public Dictionary<string,List<Choice>> contexts {get;set;}
+        public Dictionary<string,FollowUpRule> followUps {get;set;}
+        public List<IndependentAction> independentActions {get;set;}
         public void Validate(Skin s) {
             Skin.Require(schemaVersion==1&&decisionSeconds!=null&&decisionSeconds.Length==2&&decisionSeconds[0]>0&&decisionSeconds[1]>=decisionSeconds[0],"Invalid behavior timing");
             Skin.Require(contextChangeSeconds>=0&&contextChangeSeconds<=10,"Invalid context change delay");
@@ -138,7 +151,21 @@ namespace Catcon {
             foreach(var c in contexts.Values)Skin.Require(c.Count>0&&c.All(x=>x.weight>0&&s.clips.ContainsKey(x.clip)),"Invalid behavior choice");
             Skin.Require(ambientChance>=0&&ambientChance<=1,"Invalid ambient probability");
             if(ambientChance>0)Skin.Require(ambientChoices!=null&&ambientChoices.Count>0&&ambientChoices.All(x=>x.weight>0&&s.clips.ContainsKey(x.clip)),"Invalid ambient choices");
+            Skin.Require(followUps!=null&&independentActions!=null,"Behavior rules must be collections");
+            foreach(var entry in followUps){
+                var rule=entry.Value;
+                Skin.Require(s.clips.ContainsKey(entry.Key)&&rule!=null&&Probability(rule.chance),"Invalid follow-up probability or source");
+                Skin.Require(rule.choices!=null&&rule.choices.Count>0&&rule.choices.All(x=>x!=null&&x.clip!=null&&x.weight>0&&s.clips.ContainsKey(x.clip))&&rule.choices.Sum(x=>(long)x.weight)<=Int32.MaxValue,"Invalid follow-up choices");
+            }
+            Skin.Require(independentActions.All(x=>x!=null&&x.clip!=null)&&independentActions.Select(x=>x.clip).Distinct().Count()==independentActions.Count,"Duplicate or missing independent action");
+            foreach(var rule in independentActions){
+                Skin.Require(s.clips.ContainsKey(rule.clip)&&Probability(rule.chance),"Invalid independent action or probability");
+                Skin.Require(rule.intervalSeconds!=null&&rule.intervalSeconds.Length==2&&Finite(rule.intervalSeconds[0])&&Finite(rule.intervalSeconds[1])&&rule.intervalSeconds[0]>=30&&rule.intervalSeconds[1]>=rule.intervalSeconds[0]&&rule.intervalSeconds[1]<=604800,"Invalid independent action interval");
+                Skin.Require(rule.contexts==null||(rule.contexts.Length>0&&rule.contexts.All(ContextNames.All.ContainsKey)),"Invalid independent action contexts");
+            }
         }
+        static bool Finite(double value){return !Double.IsNaN(value)&&!Double.IsInfinity(value);}
+        static bool Probability(double value){return Finite(value)&&value>=0&&value<=1;}
     }
     public static class ContextNames {
         public static readonly Dictionary<string,string> All=new Dictionary<string,string>{{"idle","自由活动"},{"coding","写代码"},{"video","看视频"},{"office","办公"},{"browsing","浏览网页"},{"chat","聊天"},{"gaming","玩游戏"}};

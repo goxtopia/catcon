@@ -1,0 +1,65 @@
+/* Four complete small stories, using the established Mikan face library. */
+module.exports=function({pose,clip,poses,frame,head,layer}){
+  pose('knead','knead_body_0','face_front_smile',8,6,{prop:'cushion_0'});
+  Object.assign(poses.knead.find(l=>l.id==='prop'),{z:-1});
+  Object.assign(poses.knead.find(l=>l.id==='left'),{sprite:'knead_paws_0',visible:true});
+  clip('knead','给小垫子踩踩奶','knead',8,[
+    {head:head('face_front_open')},
+    frame('knead_body_1','face_front_smile',8,7,{left:{sprite:'knead_paws_1'},prop:{sprite:'cushion_1'}}),
+    frame('knead_body_0','face_front_smile',8,6,{left:{sprite:'knead_paws_0'}}),
+    frame('knead_body_2','face_front_smile',8,7,{left:{sprite:'knead_paws_2'},prop:{sprite:'cushion_2'}}),
+    frame('knead_body_0','face_front_smile',8,6,{left:{sprite:'knead_paws_3'}}),
+    frame('knead_body_1','face_front_closed',8,7,{left:{sprite:'knead_paws_1'},prop:{sprite:'cushion_1'}}),
+    frame('knead_body_2','face_front_smile',8,7,{left:{sprite:'knead_paws_2'},prop:{sprite:'cushion_2'}}),
+    {head:head('face_front_half'),left:{sprite:'knead_paws_0'}}
+  ],[600,180,220,180,220,180,220,900],{previewSeconds:.7});
+
+  pose('box','torso_sit_0','face_front_half',8,17,{prop:'box_front_0'});
+  Object.assign(poses.box.find(l=>l.id==='body'),{visible:false});
+  poses.box.push(layer('boxBack','box_back',0,0,-2));
+  Object.assign(poses.box.find(l=>l.id==='prop'),{z:6});
+  Object.assign(poses.box.find(l=>l.id==='left'),{x:8,y:21,z:8});
+  Object.assign(poses.box.find(l=>l.id==='right'),{x:20,y:21,z:8});
+  clip('box_peek','纸箱里冒出一只猫','box',7,[
+    {},{head:head('face_front_open',8,14)},
+    {head:head('face_front_open',8,10),left:{visible:true}},
+    {body:{visible:true},head:head('face_front_open',8,6),left:{visible:true},right:{visible:true}},
+    {body:{visible:true},head:head('face_quarter_open',8,7),left:{visible:true},right:{visible:true},prop:{sprite:'box_front_1'}},
+    {body:{visible:true},head:head('face_front_closed',8,7),left:{visible:true},right:{visible:true}},
+    {body:{visible:true},head:head('face_tilt_other',8,6),left:{visible:true},right:{visible:true},prop:{sprite:'box_front_2'}},
+    {head:head('face_front_half',8,10),left:{visible:true},right:{visible:true}},
+    {head:head('face_front_half',8,14),left:{visible:true}},
+    {head:head('face_front_half',8,17)}
+  ],[500,160,180,250,400,180,500,180,200,800],{previewSeconds:1.3});
+
+  pose('leaf','reach_body_0','face_quarter_open',8,6,{prop:'leaf_0',px:2,py:1});
+  Object.assign(poses.leaf.find(l=>l.id==='left'),{sprite:'reach_paw_0'});
+  clip('leaf_catch','伸爪够一片落叶','leaf',5,[
+    {},{head:head('face_tilt',8,5),prop:{sprite:'leaf_1',x:1,y:5}},
+    frame('reach_body_1','face_quarter_open',8,4,{left:{visible:true,sprite:'reach_paw_0'},prop:{sprite:'leaf_2',x:2,y:9}}),
+    frame('reach_body_2','face_quarter_open',8,2,{left:{visible:true,sprite:'reach_paw_1'},prop:{sprite:'leaf_0',x:0,y:9}}),
+    frame('reach_body_2','face_front_scared',8,3,{left:{visible:true,sprite:'reach_paw_2'},prop:{sprite:'leaf_1',x:1,y:14}}),
+    frame('reach_body_1','face_quarter_open',8,4,{left:{visible:true,sprite:'reach_paw_3'},prop:{sprite:'leaf_2',x:2,y:21}}),
+    {head:head('face_quarter_half',8,7),prop:{sprite:'leaf_0',x:2,y:25}},
+    frame('torso_quarter_0','face_down',4,13,{prop:{sprite:'leaf_2',x:1,y:26}}),
+    {head:head('face_quarter_half',8,7),prop:{sprite:'leaf_2',x:1,y:26}},
+    frame('torso_sit_0','face_front_open',8,6,{prop:{visible:false}})
+  ],[500,400,160,110,150,240,300,450,650,650],{playback:'once',previewSeconds:1.1});
+
+  pose('bug','torso_sit_0','face_front_open',8,6,{prop:'tiny_fly_0',px:3,py:4,effect:'question',ex:25,ey:2});
+  Object.assign(poses.bug.find(l=>l.id==='effect'),{visible:false});
+  Object.assign(poses.bug.find(l=>l.id==='right'),{sprite:'bug_paw_0'});
+  clip('bug_watch','盯小飞虫 · 扑了个空','bug',5,[
+    {},{head:head('face_tilt',8,5),prop:{sprite:'tiny_fly_1',x:13,y:1}},
+    {head:head('face_quarter_open_right',8,6),prop:{sprite:'tiny_fly_0',x:25,y:5}},
+    {head:head('face_quarter_open_right',8,6),right:{visible:true,sprite:'bug_paw_0'},prop:{sprite:'tiny_fly_1',x:27,y:13}},
+    {head:head('face_quarter_open_right',8,5),right:{visible:true,sprite:'bug_paw_1'},prop:{sprite:'tiny_fly_0',x:27,y:10}},
+    {head:head('face_front_closed',8,7),right:{visible:true,sprite:'bug_paw_2'},prop:{visible:false}},
+    {head:head('face_quarter_half',8,7),right:{visible:true,sprite:'bug_paw_2'},prop:{visible:false}},
+    {head:head('face_front_half',8,6),right:{visible:true,sprite:'bug_paw_3'},effect:{visible:true},prop:{visible:false}},
+    {head:head('face_tilt_other',8,5),prop:{sprite:'tiny_fly_1',x:26,y:7},effect:{visible:false}},
+    {head:head('face_front_open',8,6),prop:{sprite:'tiny_fly_0',x:23,y:1}},
+    {head:head('face_front_half',8,6),prop:{visible:false}},
+    {head:head('face_front_open',8,6),prop:{visible:false}}
+  ],[600,240,320,180,140,100,180,340,300,400,500,700],{playback:'once',previewSeconds:1.4});
+};

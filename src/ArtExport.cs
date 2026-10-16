@@ -29,7 +29,7 @@ namespace Catcon {
                     g.Clear(Color.FromArgb(246,244,236));g.DrawString("蜜柑 II · 逐帧动作图鉴",title,labelBrush,24,16);g.DrawString("CATCON  /  NATIVE 32 × 32  /  "+skin.clips.Count+" ANIMATIONS",font,labelBrush,27,61);
                     int i=0;foreach(var pair in skin.clips){int x=i%cols*cellW,y=i/cols*cellH+96;
                         using(var bg=new SolidBrush(i%2==0?Color.FromArgb(233,235,222):Color.FromArgb(239,236,224)))g.FillRectangle(bg,x+8,y+4,cellW-16,cellH-8);
-                        double sample=pair.Key=="yawn"?1.2:pair.Key=="sit_tilt"?1.0:.4;
+                        double sample=pair.Value.previewSeconds??(pair.Key=="yawn"?1.2:pair.Key=="sit_tilt"?1.0:.4);
                         using(var frame=anim.RenderAt(pair.Key,sample,false))using(var scaled=Animator.Scale(frame,4))g.DrawImageUnscaled(scaled,x+36,y+1);
                         var format=new StringFormat{Alignment=StringAlignment.Center};g.DrawString(pair.Value.label,font,labelBrush,new RectangleF(x+5,y+132,cellW-10,25),format);format.Dispose();
                         using(var small=new Font("Consolas",8))g.DrawString(pair.Key,small,labelBrush,x+18,y+155);i++;

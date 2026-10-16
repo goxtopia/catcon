@@ -48,7 +48,7 @@ namespace Catcon {
         }
         void Tick(object sender,EventArgs e){
             try{
-                double now=watch.Elapsed.TotalSeconds,dt=Math.Min(.15,now-lastTime);lastTime=now;
+                double now=watch.Elapsed.TotalSeconds,elapsed=now-lastTime,dt=Math.Min(.15,elapsed);lastTime=now;
                 Native.POINT cp;Native.GetCursorPos(out cp);Point cursor=new Point(cp.X,cp.Y);
                 if(down){
                     if(!dragged&&BehaviorEngine.Distance(cursor.X,cursor.Y,pressCursor.X,pressCursor.Y)>4){dragged=true;Engine.BeginDrag();}
@@ -57,7 +57,7 @@ namespace Catcon {
                 }
                 Monitor.Update(dt,Settings.Classify,Settings.SmartClassify);
                 var area=Screen.FromPoint(new Point((int)Engine.X+Engine.Width/2,(int)Engine.Y+Engine.Width/2)).WorkingArea;
-                Engine.Advance(dt,new InputFrame{Cursor=cursor,WorkArea=area,Context=OverrideContext??Monitor.Category,Movement=Settings.Wander,Reactions=Settings.Reactions,QuietGames=Settings.QuietGames});
+                Engine.Advance(dt,new InputFrame{Cursor=cursor,WorkArea=area,Context=OverrideContext??Monitor.Category,Movement=Settings.Wander,Reactions=Settings.Reactions,QuietGames=Settings.QuietGames},elapsed);
                 DrawPet();
                 if(now-saveAt>8){saveAt=now;Save();if(StatusChanged!=null)StatusChanged();}
             }catch(Exception ex){Storage.Log(ex);timer.Stop();MessageBox.Show("桌宠遇到了问题，已暂停。可以从托盘退出后重新打开。\n"+ex.Message,"Catcon",MessageBoxButtons.OK,MessageBoxIcon.Error);}

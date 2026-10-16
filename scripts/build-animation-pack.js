@@ -140,11 +140,13 @@ clip('pet','眯眼呼噜呼噜','love',5,[
 clip('drag','四爪垂下来','drag',3,[
   {},{head:head('face_front_flat',8,6),tail:{sprite:'tail_sit_2'}},{head:head('face_front_half',8,5),tail:{sprite:'tail_sit_1'}},{head:head('face_front_flat',8,5),tail:{sprite:'tail_sit_3'}}
 ],[500,350,120,450]);
+require('./build-extra-animations')({pose,clip,poses,frame,head,layer});
+require('./build-daily-animations')({pose,clip,poses,frame,head,layer});
 // Secondary sprite cycles keep tails alive during long held body drawings.
 // Each embedded-tail variant retains that body's exact pose and attachment.
 for(const layers of Object.values(poses))for(const l of layers)if(tailCycles[l.sprite])Object.assign(l,{spriteCycle:tailCycles[l.sprite],cycleMs:300});
 for(const [id,c] of Object.entries(clips)){
-  const ms=id.startsWith('sleep')?700:id==='loaf'||id==='video_watch'?600:['run','run_cursor','retreat','chase_tail'].includes(id)?110:id==='pounce'||id==='scared'?100:id==='yarn'?160:id==='keyboard_walk'||id==='drag'?180:id==='pet'?200:400;
+  const ms=id.startsWith('sleep')?700:id==='loaf'||id==='video_watch'||id==='knead'?600:['run','run_cursor','retreat','chase_tail'].includes(id)?110:id==='pounce'||id==='scared'?100:id==='yarn'||id==='bug_watch'?160:id==='keyboard_walk'||id==='drag'?180:id==='pet'?200:400;
   for(const f of c.frames){
     const body=f.body||{};
     if(id==='keyboard_walk')f.tail={...(f.tail||{}),sprite:'tail_keyboard_0',visible:true};
@@ -160,7 +162,7 @@ for(const [id,c] of Object.entries(clips)){
     }
   }
 }
-const skin={schemaVersion:1,id:'mikan',name:'蜜柑 · 橘白猫',author:'Catcon / Mikan II native pixel redraw',canvas:32,artRevision:4,palette,sprites,poses,clips};
+const skin={schemaVersion:1,id:'mikan',name:'蜜柑 · 橘白猫',author:'Catcon / Mikan II native pixel redraw',canvas:32,artRevision:6,palette,sprites,poses,clips};
 fs.writeFileSync(path.join(root,'assets/skins/mikan/skin.json'),JSON.stringify(skin,null,2));
 const count=Object.values(clips).reduce((n,c)=>n+c.frames.length,0);
 console.log(`Mikan II: ${Object.keys(sprites).length} native pixel components, ${Object.keys(poses).length} poses, ${Object.keys(clips).length} clips, ${count} authored keyframes; no resampling, bitmap rotation or body-scale animation.`);
