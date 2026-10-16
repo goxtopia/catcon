@@ -1,0 +1,32 @@
+# Build outputs and release packages
+/build/
+/dist/
+**/bin/
+**/obj/
+
+# Local installer tools, downloads, test reports, and art review snapshots
+/tools/
+/artifacts/
+
+# IDE and per-user workspace state
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Dependency caches
+node_modules/
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+*.bak
+*~
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini

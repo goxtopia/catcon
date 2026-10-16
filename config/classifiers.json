@@ -1,0 +1,225 @@
+{
+  "schemaVersion": 1,
+  "pollSeconds": 2,
+  "stableSamples": 2,
+  "rules": [
+    {
+      "category": "coding",
+      "tag": "coding-assistants",
+      "process": "^(?:codex(?:[-_. ](?:app|desktop|gui|code-mode-host|command-runner)(?:[-_. ].*)?)?|openai[._ -]codex|work[ _-]?buddy(?:[._ -](?:app|desktop))?)$"
+    },
+    {
+      "category": "chat",
+      "tag": "enterprise-wechat",
+      "process": "^(?:wxwork(?:web)?|wecom(?:-agent)?|wework|wechatwork|wechatappex)$"
+    },
+    {
+      "category": "coding",
+      "product": "(?:^|\\b)(?:codex|work[ _-]?buddy)(?:\\b|$)"
+    },
+    {
+      "category": "chat",
+      "product": "(?:wxwork|wecom|wework|企业微信)"
+    },
+    {
+      "category": "coding",
+      "tag": "shared-host-assistants",
+      "process": "^(?:applicationframehost|msedgewebview2|chatgpt|electron)$",
+      "title": "(?:\\bcodex\\b|\\bwork[ _-]?buddy\\b)"
+    },
+    {
+      "category": "chat",
+      "tag": "shared-host-wecom",
+      "process": "^(?:applicationframehost|msedgewebview2|electron)$",
+      "title": "(?:企业微信|\\bwecom\\b|\\bwxwork\\b)"
+    },
+    {
+      "category": "coding",
+      "process": "^(code|code - insiders|cursor|windsurf|devenv|rider64|idea64|pycharm64|webstorm64|phpstorm64|clion64|goland64|sublime_text|notepad\\+\\+|codex|windowsterminal|wezterm-gui|alacritty|mintty|powershell|pwsh|cmd)$"
+    },
+    {
+      "category": "video",
+      "process": "^(vlc|mpv|potplayer64|potplayer|wmplayer|movies|bilibili|iqiyi|youku|qqvideo|douyin)$"
+    },
+    {
+      "category": "chat",
+      "process": "^(wechat|weixin|qq|tim|telegram|discord|slack|teams|ms-teams|dingtalk|feishu|lark|signal|whatsapp|zoom)$"
+    },
+    {
+      "category": "office",
+      "process": "^(winword|excel|powerpnt|onenote|outlook|wps|et|wpp|notion|obsidian|acrord32|acrobat|zotero|typora)$"
+    },
+    {
+      "category": "gaming",
+      "process": "^(league of legends|leagueclientux|valorant-win64-shipping|cs2|dota2|overwatch|genshinimpact|yuanshen|starrail|minecraft|javaw|terraria|stardew valley|eldenring|blackmythwukong|robloxplayerbeta|fortniteclient-win64-shipping)$"
+    },
+    {
+      "category": "video",
+      "process": "^(chrome|msedge|firefox|brave|opera|vivaldi|arc|browser)$",
+      "title": "(youtube|bilibili|哔哩哔哩|netflix|爱奇艺|腾讯视频|优酷|twitch|抖音|西瓜视频)"
+    },
+    {
+      "category": "coding",
+      "process": "^(chrome|msedge|firefox|brave|opera|vivaldi|arc|browser)$",
+      "title": "(github|gitlab|stack overflow|codesandbox|codepen|replit|leetcode|力扣|vscode|\\bcodex\\b|\\bworkbuddy\\b)"
+    },
+    {
+      "category": "office",
+      "process": "^(chrome|msedge|firefox|brave|opera|vivaldi|arc|browser)$",
+      "title": "(google docs|google sheets|google slides|飞书文档|腾讯文档|语雀|notion|outlook|gmail|石墨文档)"
+    },
+    {
+      "category": "chat",
+      "process": "^(chrome|msedge|firefox|brave|opera|vivaldi|arc|browser)$",
+      "title": "(discord|slack|telegram|whatsapp|微信|飞书|钉钉|microsoft teams)"
+    },
+    {
+      "category": "browsing",
+      "process": "^(chrome|msedge|firefox|brave|opera|vivaldi|arc|browser|iexplore|360chrome|qqbrowser|sogouexplorer)$"
+    }
+  ],
+  "fullscreenGameFallback": true,
+  "fullscreenExclude": "^(explorer|applicationframehost|searchhost|startmenuexperiencehost|shellexperiencehost|lockapp|dwm|mstsc|parsec|anydesk|teamviewer|obs64|photos|mspaint|snippingtool|catcon)$",
+  "fallback": {
+    "enabled": true,
+    "minConfidence": 0.68,
+    "minMargin": 0.2,
+    "minScore": 3.5,
+    "evidenceScale": 3.2,
+    "fullscreenWeight": 0.75,
+    "signals": [
+      {
+        "category": "coding",
+        "group": "brand",
+        "pattern": "\\b(codex|work[ _-]?buddy|visual studio|vscode|jetbrains|android studio|xcode|eclipse|neovim|nvim|zed)\\b|开发者工具|开发环境",
+        "weight": 5
+      },
+      {
+        "category": "coding",
+        "group": "brand",
+        "pattern": "\\b(github|gitlab|stack overflow|stackoverflow|codesandbox|codepen|replit|leetcode)\\b|力扣",
+        "weight": 4.8
+      },
+      {
+        "category": "coding",
+        "group": "source-file",
+        "pattern": "(?:^|[\\s/\\\\])[-\\w.]+\\.(?:tsx?|jsx?|py|rs|go|cs|cpp|hpp|java|kt|swift|rb|php|vue|svelte|sql|sh|ps1)\\b",
+        "weight": 3.4
+      },
+      {
+        "category": "coding",
+        "group": "workflow",
+        "pattern": "\\b(debugger|debugging|compile|compiler|refactor|pull request|commit|merge request|git diff|breakpoint|unit test)\\b|断点|调试|编译|重构|代码审查",
+        "weight": 2.6
+      },
+      {
+        "category": "coding",
+        "group": "toolchain",
+        "pattern": "\\b(cargo|rustc|typescript|python|node\\.?js|npm|pnpm|webpack|cmake|gradle|maven)\\b",
+        "weight": 3.1
+      },
+      {
+        "category": "video",
+        "group": "brand",
+        "pattern": "\\b(youtube|netflix|bilibili|twitch|iqiyi|youku)\\b|哔哩哔哩|爱奇艺|腾讯视频|优酷",
+        "weight": 5
+      },
+      {
+        "category": "video",
+        "group": "playback",
+        "pattern": "\\b(video player|media player|now playing|watching|playback|live stream|episode)\\b|正在播放|视频播放|视频播放器|直播间|第[0-9一二三四五六七八九十]+集",
+        "weight": 3
+      },
+      {
+        "category": "video",
+        "group": "media-file",
+        "pattern": "\\.(mp4|mkv|webm|avi|mov|m4v|flv)\\b",
+        "weight": 3.2
+      },
+      {
+        "category": "office",
+        "group": "brand",
+        "pattern": "\\b(microsoft word|microsoft excel|powerpoint|libreoffice|onlyoffice|wps|notion|obsidian|pdf viewer|pdf reader)\\b|腾讯文档|飞书文档|石墨文档",
+        "weight": 5
+      },
+      {
+        "category": "office",
+        "group": "document-file",
+        "pattern": "\\.(docx?|xlsx?|pptx?|odt|ods|odp|pdf)\\b",
+        "weight": 3.4
+      },
+      {
+        "category": "office",
+        "group": "workflow",
+        "pattern": "周报|日报|会议纪要|电子表格|演示文稿|财务报表|考勤|文档编辑",
+        "weight": 3
+      },
+      {
+        "category": "office",
+        "group": "document",
+        "pattern": "\\b(document|spreadsheet|presentation|workbook)\\b|文档|表格|幻灯片",
+        "weight": 1.6
+      },
+      {
+        "category": "chat",
+        "group": "brand",
+        "pattern": "\\b(wecom|wxwork(?:web)?|wechat|weixin|discord|slack|telegram|whatsapp|feishu|dingtalk|teams)\\b|企业微信|微信|飞书|钉钉",
+        "weight": 5
+      },
+      {
+        "category": "chat",
+        "group": "conversation",
+        "pattern": "\\b(direct message|group chat|conversation|chatroom|messaging)\\b|群聊|聊天窗口|会话|消息列表",
+        "weight": 3
+      },
+      {
+        "category": "chat",
+        "group": "message",
+        "pattern": "\\b(unread messages?|new messages?)\\b|未读消息|发送消息|联系人",
+        "weight": 1.8
+      },
+      {
+        "category": "gaming",
+        "group": "brand",
+        "pattern": "\\b(minecraft|valorant|overwatch|dota ?2|counter[- ]strike ?2|elden ring|stardew valley)\\b|英雄联盟|原神|星穹铁道|王者荣耀|黑神话",
+        "weight": 5
+      },
+      {
+        "category": "gaming",
+        "group": "engine",
+        "pattern": "\\bwin64[-_ ]shipping\\b",
+        "weight": 4.5
+      },
+      {
+        "category": "gaming",
+        "group": "gameplay",
+        "pattern": "\\b(multiplayer|matchmaking|game lobby|level select|new game|continue game|battle royale)\\b|游戏大厅|开始游戏|继续游戏|匹配对局|战斗中|联机大厅",
+        "weight": 3.3
+      },
+      {
+        "category": "gaming",
+        "group": "generic",
+        "pattern": "\\b(game|gaming)\\b|游戏",
+        "weight": 1
+      },
+      {
+        "category": "browsing",
+        "group": "browser",
+        "pattern": "\\b(browser|chromium|firefox|vivaldi|brave)\\b|浏览器",
+        "weight": 4.8
+      },
+      {
+        "category": "browsing",
+        "group": "url",
+        "pattern": "https?://[^\\s]+|\\bwww\\.[^\\s]+",
+        "weight": 3
+      },
+      {
+        "category": "browsing",
+        "group": "navigation",
+        "pattern": "\\b(web page|website|new tab|bookmarks)\\b|网页|新标签页|书签",
+        "weight": 1.5
+      }
+    ]
+  }
+}

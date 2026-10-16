@@ -1,0 +1,192 @@
+{
+  "schemaVersion": 1,
+  "contextChance": 0.7,
+  "decisionSeconds": [
+    9,
+    18
+  ],
+  "ambientChance": 0.08,
+  "ambientChoices": [
+    {
+      "clip": "run",
+      "weight": 1
+    }
+  ],
+  "cursorNearPixels": 110,
+  "cursorDwellSeconds": 5,
+  "startleSpeed": 1100,
+  "startleCooldown": 4,
+  "repeatedStartleCount": 3,
+  "repeatedStartleWindow": 24,
+  "events": {
+    "startle": "scared",
+    "repeatedStartle": "loaf",
+    "dwell": "retreat",
+    "drag": "drag",
+    "release": "sit",
+    "pet": "pet",
+    "chase": "run_cursor",
+    "idle": "sit"
+  },
+  "contexts": {
+    "idle": [
+      {
+        "clip": "sit",
+        "weight": 5
+      },
+      {
+        "clip": "sit_side",
+        "weight": 2
+      },
+      {
+        "clip": "sit_tilt",
+        "weight": 2
+      },
+      {
+        "clip": "sit_groom",
+        "weight": 2
+      },
+      {
+        "clip": "sleep",
+        "weight": 2
+      },
+      {
+        "clip": "sleep_stretch",
+        "weight": 1
+      },
+      {
+        "clip": "loaf",
+        "weight": 2
+      },
+      {
+        "clip": "yarn",
+        "weight": 2
+      },
+      {
+        "clip": "chase_tail",
+        "weight": 1
+      },
+      {
+        "clip": "run",
+        "weight": 1
+      },
+      {
+        "clip": "eat",
+        "weight": 1
+      },
+      {
+        "clip": "drink",
+        "weight": 1
+      }
+    ],
+    "coding": [
+      {
+        "clip": "code_watch",
+        "weight": 4
+      },
+      {
+        "clip": "code_laptop",
+        "weight": 3
+      },
+      {
+        "clip": "keyboard_walk",
+        "weight": 2
+      },
+      {
+        "clip": "sleep",
+        "weight": 2
+      },
+      {
+        "clip": "sit_groom",
+        "weight": 1
+      }
+    ],
+    "video": [
+      {
+        "clip": "video_watch",
+        "weight": 6
+      },
+      {
+        "clip": "yawn",
+        "weight": 2
+      },
+      {
+        "clip": "sleep_stretch",
+        "weight": 2
+      },
+      {
+        "clip": "loaf",
+        "weight": 1
+      }
+    ],
+    "office": [
+      {
+        "clip": "office_read",
+        "weight": 5
+      },
+      {
+        "clip": "sit",
+        "weight": 2
+      },
+      {
+        "clip": "drink",
+        "weight": 1
+      },
+      {
+        "clip": "sleep",
+        "weight": 1
+      }
+    ],
+    "browsing": [
+      {
+        "clip": "browse",
+        "weight": 4
+      },
+      {
+        "clip": "sit_tilt",
+        "weight": 2
+      },
+      {
+        "clip": "yarn",
+        "weight": 2
+      },
+      {
+        "clip": "sit_groom",
+        "weight": 1
+      }
+    ],
+    "chat": [
+      {
+        "clip": "chat_listen",
+        "weight": 5
+      },
+      {
+        "clip": "chat_question",
+        "weight": 4
+      },
+      {
+        "clip": "sit_tilt",
+        "weight": 2
+      }
+    ],
+    "gaming": [
+      {
+        "clip": "game",
+        "weight": 6
+      },
+      {
+        "clip": "code_watch",
+        "weight": 1
+      },
+      {
+        "clip": "scared",
+        "weight": 1
+      },
+      {
+        "clip": "drink",
+        "weight": 1
+      }
+    ]
+  },
+  "contextChangeSeconds": 1
+}
