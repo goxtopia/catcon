@@ -5,7 +5,7 @@ Set-Location -LiteralPath $projectRoot
 if (-not $SkipArt) { & node (Join-Path $PSScriptRoot 'draw-skin.js'); if ($LASTEXITCODE -ne 0) { throw 'Art generation failed' } }
 $compiler = Join-Path $env:WINDIR 'Microsoft.NET/Framework64/v4.0.30319/csc.exe'
 if (-not (Test-Path -LiteralPath $compiler)) { throw '.NET Framework 4.8 compiler is required.' }
-$out = Join-Path $projectRoot 'dist/Catcon-1.4.0'
+$out = Join-Path $projectRoot 'dist/Catcon-1.6.1'
 New-Item -ItemType Directory -Force -Path $out | Out-Null
 $sources = @(Get-ChildItem -LiteralPath (Join-Path $projectRoot 'src') -Filter '*.cs' | ForEach-Object { $_.FullName })
 $iconOptions = @()
@@ -17,10 +17,10 @@ Copy-Item -LiteralPath (Join-Path $projectRoot 'config') -Destination $out -Recu
 Copy-Item -LiteralPath (Join-Path $projectRoot 'README.md') -Destination $out -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'docs') -Destination $out -Recurse -Force
 Copy-Item -LiteralPath (Join-Path $projectRoot 'LICENSE') -Destination $out -Force
-Compress-Archive -Path "$out/*" -DestinationPath (Join-Path $projectRoot 'dist/Catcon-1.4.0-win.zip') -Force
+Compress-Archive -Path "$out/*" -DestinationPath (Join-Path $projectRoot 'dist/Catcon-1.6.1-win.zip') -Force
 $checksumLines = @(
-    ((Get-FileHash -LiteralPath "$out/Catcon.exe" -Algorithm SHA256).Hash.ToLower() + '  Catcon-1.4.0/Catcon.exe'),
-    ((Get-FileHash -LiteralPath (Join-Path $projectRoot 'dist/Catcon-1.4.0-win.zip') -Algorithm SHA256).Hash.ToLower() + '  Catcon-1.4.0-win.zip')
+    ((Get-FileHash -LiteralPath "$out/Catcon.exe" -Algorithm SHA256).Hash.ToLower() + '  Catcon-1.6.1/Catcon.exe'),
+    ((Get-FileHash -LiteralPath (Join-Path $projectRoot 'dist/Catcon-1.6.1-win.zip') -Algorithm SHA256).Hash.ToLower() + '  Catcon-1.6.1-win.zip')
 )
 Set-Content -LiteralPath (Join-Path $projectRoot 'dist/SHA256SUMS.txt') -Value $checksumLines -Encoding ASCII
 Write-Output "Built $out/Catcon.exe"

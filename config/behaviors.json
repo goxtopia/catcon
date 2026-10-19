@@ -105,9 +105,33 @@
       {
         "clip": "pencil_nudge",
         "weight": 1
+      },
+      {
+        "clip": "stretch",
+        "weight": 1
+      },
+      {
+        "clip": "laser",
+        "weight": 1
+      },
+      {
+        "clip": "pat",
+        "weight": 2
+      },
+      {
+        "clip": "blink",
+        "weight": 2
+      },
+      {
+        "clip": "sneeze",
+        "weight": 1
       }
     ],
     "coding": [
+      {
+        "clip": "compile_error",
+        "weight": 2
+      },
       {
         "clip": "code_watch",
         "weight": 4
@@ -139,9 +163,25 @@
       {
         "clip": "warm_cup",
         "weight": 2
+      },
+      {
+        "clip": "stretch",
+        "weight": 1
+      },
+      {
+        "clip": "blink",
+        "weight": 2
+      },
+      {
+        "clip": "pat",
+        "weight": 1
       }
     ],
     "video": [
+      {
+        "clip": "video_paw",
+        "weight": 2
+      },
       {
         "clip": "video_watch",
         "weight": 6
@@ -173,9 +213,25 @@
       {
         "clip": "warm_cup",
         "weight": 1
+      },
+      {
+        "clip": "stretch",
+        "weight": 1
+      },
+      {
+        "clip": "blink",
+        "weight": 1
+      },
+      {
+        "clip": "sneeze",
+        "weight": 1
       }
     ],
     "office": [
+      {
+        "clip": "paper_sit",
+        "weight": 2
+      },
       {
         "clip": "office_read",
         "weight": 5
@@ -203,9 +259,25 @@
       {
         "clip": "warm_cup",
         "weight": 1
+      },
+      {
+        "clip": "stretch",
+        "weight": 1
+      },
+      {
+        "clip": "blink",
+        "weight": 1
+      },
+      {
+        "clip": "pat",
+        "weight": 1
       }
     ],
     "browsing": [
+      {
+        "clip": "browse_nod",
+        "weight": 2
+      },
       {
         "clip": "browse",
         "weight": 4
@@ -237,9 +309,21 @@
       {
         "clip": "warm_cup",
         "weight": 1
+      },
+      {
+        "clip": "laser",
+        "weight": 1
+      },
+      {
+        "clip": "blink",
+        "weight": 1
       }
     ],
     "chat": [
+      {
+        "clip": "caught_yawn",
+        "weight": 2
+      },
       {
         "clip": "chat_listen",
         "weight": 5
@@ -263,9 +347,25 @@
       {
         "clip": "fish_hug",
         "weight": 1
+      },
+      {
+        "clip": "pat",
+        "weight": 2
+      },
+      {
+        "clip": "blink",
+        "weight": 1
+      },
+      {
+        "clip": "sneeze",
+        "weight": 1
       }
     ],
     "gaming": [
+      {
+        "clip": "game_lose",
+        "weight": 2
+      },
       {
         "clip": "game",
         "weight": 6
@@ -284,6 +384,14 @@
       },
       {
         "clip": "fish_hug",
+        "weight": 1
+      },
+      {
+        "clip": "laser",
+        "weight": 2
+      },
+      {
+        "clip": "pat",
         "weight": 1
       }
     ]
@@ -305,6 +413,19 @@
     },
     "fish_hug": {
       "chance": 0.65,
+      "choices": [
+        {
+          "clip": "sleep",
+          "weight": 4
+        },
+        {
+          "clip": "sleep_stretch",
+          "weight": 1
+        }
+      ]
+    },
+    "stretch": {
+      "chance": 0.6,
       "choices": [
         {
           "clip": "sleep",

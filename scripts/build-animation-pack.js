@@ -142,6 +142,8 @@ clip('drag','四爪垂下来','drag',3,[
 ],[500,350,120,450]);
 require('./build-extra-animations')({pose,clip,poses,frame,head,layer});
 require('./build-daily-animations')({pose,clip,poses,frame,head,layer});
+require('./build-companion-animations')({pose,clip,poses,frame,head,layer});
+require('./build-scene-animations')({pose,clip,poses,head});
 // Secondary sprite cycles keep tails alive during long held body drawings.
 // Each embedded-tail variant retains that body's exact pose and attachment.
 for(const layers of Object.values(poses))for(const l of layers)if(tailCycles[l.sprite])Object.assign(l,{spriteCycle:tailCycles[l.sprite],cycleMs:300});

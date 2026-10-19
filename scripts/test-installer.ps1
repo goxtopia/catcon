@@ -1,4 +1,4 @@
-param([string]$BaselineVersion='1.3.0',[string]$CurrentVersion='1.4.0')
+param([string]$BaselineVersion='1.6.0',[string]$CurrentVersion='1.6.1')
 $ErrorActionPreference = 'Stop'
 foreach ($version in @($BaselineVersion,$CurrentVersion)) { if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Installer test versions must use x.y.z format.' } }
 $projectRoot = Split-Path -Parent $PSScriptRoot

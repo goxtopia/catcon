@@ -42,5 +42,5 @@ class Canvas {
   mirror(){let c=new Canvas(this.w,this.h);c.a=this.a.map(r=>r.slice().reverse());return c;}
   data(){return {width:this.w,height:this.h,rows:this.a.map(r=>r.join(''))};}
 }
-const palette={'.':'#00000000',o:'#49372f',d:'#785038',s:'#b87540',f:'#e6a05b',l:'#ffc57b',h:'#ffda98',c:'#fff0d1',b:'#e8cea6',p:'#e9988d',r:'#b96963',w:'#fffaf0',g:'#89a88e',t:'#d1dfb6',v:'#526d60',u:'#9fc4cf',n:'#587b91',y:'#edd084'};
+const palette={'.':'#00000000',o:'#49372f',d:'#785038',s:'#b87540',f:'#e6a05b',l:'#ffc57b',h:'#ffda98',c:'#fff0d1',b:'#e8cea6',p:'#e9988d',r:'#b96963',w:'#fffaf0',g:'#89a88e',t:'#d1dfb6',v:'#526d60',u:'#9fc4cf',n:'#587b91',y:'#edd084',j:'#f4573f'};
 module.exports={Canvas,palette};
