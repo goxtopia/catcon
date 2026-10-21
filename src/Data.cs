@@ -175,7 +175,16 @@ namespace Catcon {
         public bool Reactions {get;set;} public bool QuietGames {get;set;} public string SkinId {get;set;}
         public bool SmartClassify {get;set;}
         public int? X {get;set;} public int? Y {get;set;}
-        public Preferences() {Scale=4;Topmost=true;Wander=true;Classify=true;SmartClassify=true;Reactions=true;QuietGames=true;SkinId="mikan";}
+        public bool GardenVisible {get;set;} public double GardenScale {get;set;} public bool GardenVisits {get;set;}
+        public int? GardenX {get;set;} public int? GardenY {get;set;}
+        public Preferences() {Scale=4;Topmost=true;Wander=true;Classify=true;SmartClassify=true;Reactions=true;QuietGames=true;SkinId="mikan";GardenVisible=true;GardenScale=3;GardenVisits=true;}
+        /// <summary>花园可选的显示倍数。默认 3 倍，范围 2.5～6 倍，半档递增。</summary>
+        public static readonly double[] GardenScales=new double[]{2.5,3,3.5,4,4.5,5,5.5,6};
+        public static double SnapGardenScale(double scale) {
+            double best=3,delta=double.MaxValue;
+            foreach(double option in GardenScales) {double d=Math.Abs(option-scale);if(d<delta-.0001){delta=d;best=option;}}
+            return best;
+        }
     }
     public sealed class Content : IDisposable {
         public Skin Skin;public BehaviorConfig Behavior;public ClassifierConfig Classifiers;
@@ -194,7 +203,8 @@ namespace Catcon {
         public static string TestDirectory;
         public static string DirectoryPath {get{return TestDirectory??Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),"Catcon");}}
         public static string SettingsPath {get{return Path.Combine(DirectoryPath,"settings.json");}}
-        public static Preferences Load() {try {var p=Json.Read<Preferences>(SettingsPath);p.Scale=Math.Max(2,Math.Min(6,p.Scale));return p;}catch{return new Preferences();}}
+        public static string GardenPath {get{return Path.Combine(DirectoryPath,"garden.json");}}
+        public static Preferences Load() {try {var p=Json.Read<Preferences>(SettingsPath);p.Scale=Math.Max(2,Math.Min(6,p.Scale));p.GardenScale=Preferences.SnapGardenScale(p.GardenScale);return p;}catch{return new Preferences();}}
         public static void Save(Preferences p) {try{Json.Write(SettingsPath,p);}catch(Exception ex){Log(ex);}}
         public static void Log(Exception ex) {try{Directory.CreateDirectory(DirectoryPath);File.AppendAllText(Path.Combine(DirectoryPath,"errors.log"),DateTime.Now.ToString("s")+" "+ex+Environment.NewLine);}catch{}}
     }

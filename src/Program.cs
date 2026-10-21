@@ -12,6 +12,7 @@ namespace Catcon {
             try {
                 if(args.Length>0&&args[0]=="--self-test")return Validation.Run(root,args.Length>1?Path.GetFullPath(args[1]):Path.Combine(root,"test-results.json"));
                 if(args.Length>0&&args[0]=="--export-art"){ArtExport.Run(root,args.Length>1?Path.GetFullPath(args[1]):root);return 0;}
+                if(args.Length>0&&args[0]=="--export-garden"){GardenExport.Run(root,args.Length>1?Path.GetFullPath(args[1]):root);return 0;}
                 if(args.Length>0&&args[0]=="--smoke-test")return Validation.Smoke(root,args.Length>1?Path.GetFullPath(args[1]):Path.Combine(root,"smoke-results.json"));
                 bool created;
                 using(var mutex=new Mutex(true,"Local\\Catcon.Desktop.1",out created)){

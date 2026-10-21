@@ -177,13 +177,137 @@ namespace Catcon {
                     check(samples.Any(id=>config.contexts[context].Any(x=>x.clip==id))&&samples.Any(id=>config.contexts["idle"].Any(x=>x.clip==id)&&!config.contexts[context].Any(x=>x.clip==id))&&samples.All(id=>s.clips[id].motion==null),"Every context mixes everyday actions while movement is disabled: "+context);
                 }
                 BehaviorRuleValidation.Run(s,root,check);
+                engine=new BehaviorEngine(s,config,41){X=200,Y=200,PixelScale=4};
+                var walkFrame=new InputFrame{WorkArea=new Rectangle(0,0,1600,900),Cursor=new Point(1500,800),Reactions=false,Movement=true};
+                engine.Play("run",true);engine.Destination=new PointF(600,320);
+                bool walked=false;
+                for(int j=0;j<600&&!walked;j++){engine.Advance(.05,walkFrame);walked=Math.Abs(engine.X-600)<1&&Math.Abs(engine.Y-320)<1;}
+                check(walked&&engine.Destination==null&&engine.Animation.Current==config.events["idle"],"An external destination walks the cat there, then clears itself on arrival");
+                engine=new BehaviorEngine(s,config,44){X=200,Y=200,PixelScale=4};
+                bool arrivalFired=false;int arrivalCount=0;
+                engine.Play("run",true);engine.Destination=new PointF(600,320);
+                engine.Arrived=delegate{arrivalFired=true;arrivalCount++;};
+                for(int j=0;j<600&&!arrivalFired;j++)engine.Advance(.05,walkFrame);
+                for(int j=0;j<40;j++)engine.Advance(.05,walkFrame);
+                check(arrivalFired&&arrivalCount==1&&engine.Arrived==null,"Arriving at a garden spot fires the interaction hook exactly once");
+                engine= new BehaviorEngine(s,config,42){X=200,Y=200,PixelScale=4};
+                engine.Destination=new PointF(100,100);engine.Play("sit",true);
+                check(engine.Destination==null,"Playing another action drops a stale walk destination");
+                engine=new BehaviorEngine(s,config,43);
+                engine.Play("pet",true);
+                bool protectedOnPlay=engine.Protected;
+                engine.Advance(s.clips["pet"].seconds+.5,walkFrame);
+                check(protectedOnPlay&&!engine.Protected,"A protected interaction reports itself busy until its time is over");
                 string first=s.poses["sit"].First(l=>l.id=="head").sprite;using(var img=a.RenderAt("sit",.6,false)){}check(s.poses["sit"].First(l=>l.id=="head").sprite==first,"Rendering does not mutate base poses");
                 bool rejected=false;try{var bad=Json.Read<Skin>(Path.Combine(root,"assets","skins","mikan","skin.json"));bad.clips["sit"].pose="missing";bad.Validate();}catch(InvalidDataException){rejected=true;}check(rejected,"Broken skin references rejected");
                 rejected=false;try{var bad=Json.Read<Skin>(Path.Combine(root,"assets","skins","mikan","skin.json"));bad.clips["../escape"]=bad.clips["sit"];bad.Validate();}catch(InvalidDataException){rejected=true;}check(rejected,"Animation export identifiers cannot escape their directory");
                 rejected=false;try{Content.Load(root,"../other");}catch(InvalidDataException){rejected=true;}check(rejected,"Skin paths cannot escape skin directory");
                 rejected=false;try{var bad=Json.Read<Skin>(Path.Combine(root,"assets","skins","mikan","skin.json"));bad.poses["sit"][0].spriteCycle=new[]{"missing","missing"};bad.Validate();}catch(InvalidDataException){rejected=true;}check(rejected,"Invalid component cycle references are rejected");
+                var gardenConfig=GardenConfig.Load(Path.Combine(root,"config","garden.json"));
+                check(gardenConfig.slots.Count>=gardenConfig.maxPlants&&gardenConfig.species.Count>=6,"Garden config offers enough slots and species");
+                check(gardenConfig.decorations.Select(d2=>d2.type).Distinct().Count()>=10,"The garden ships a varied set of small decorations");
+                check(gardenConfig.decorations.Count(d2=>d2.type=="bird")>=2&&gardenConfig.colors.ContainsKey("bird")&&gardenConfig.colors.ContainsKey("beak"),"The garden ships perched birds with their own palette");
+                check(gardenConfig.species.Count(s2=>s2.Flowering)>=4&&gardenConfig.species.Any(s2=>!s2.Flowering),"Garden mixes flowering and foliage species");
+                check(GardenEngine.StageName(.05,true)=="刚撒下"&&GardenEngine.StageName(.5,true)=="长叶"&&GardenEngine.StageName(.6,true)=="现蕾"&&GardenEngine.StageName(1,true)=="盛开"&&GardenEngine.StageName(1,false)=="茂盛","Garden growth stages read from the same thresholds");
+                var garden=new GardenEngine(gardenConfig,null,21);
+                check(garden.Plants.Count==gardenConfig.initialPlants&&garden.Plants.All(p2=>p2.growth<.2),"A new garden starts with one or two seedlings");
+                double seeding=garden.Plants[0].growth;
+                for(int i=0;i<300;i++)garden.Advance(.2);
+                check(garden.Plants[0].growth>seeding+.02&&garden.Plants[0].growth<1,"Watered seedlings grow slowly without overshooting full size");
+                check(garden.Moisture<1&&garden.Plants.All(p2=>p2.wilt<.01),"Growing garden spends water without wilting");
+                for(int i=0;i<6000&&!garden.Critical;i++)garden.Advance(.5);
+                check(garden.Critical&&garden.NeedsWater,"Soil eventually runs dry and asks for water");
+                double dryGrowth=garden.Plants[0].growth;
+                for(int i=0;i<600;i++)garden.Advance(.5);
+                check(garden.Plants[0].growth-dryGrowth<.08&&garden.Plants[0].wilt>.1,"Dry soil nearly pauses growth and wilts the plants");
+                garden.Water();
+                check(garden.Moisture==1&&garden.Watering>0&&garden.Plants[0].wilt<.2,"Watering refills the soil and revives the plants");
+                check(garden.Petals.Count>0,"Watering drops fall inside the bed");
+                var sowEngine=new GardenEngine(gardenConfig,null,55);
+                using(var sowRenderer=new GardenRenderer(gardenConfig)){
+                    sowRenderer.Render(sowEngine);
+                    int cw=gardenConfig.canvas.width,ch=gardenConfig.canvas.height;
+                    var calm=new int[cw*ch];
+                    for(int sy2=0;sy2<ch;sy2++)for(int sx2=0;sx2<cw;sx2++)calm[sy2*cw+sx2]=sowRenderer.PixelAt(sx2,sy2);
+                    var sown=sowEngine.Plant(gardenConfig.species.First(sp=>sp.Flowering).id);
+                    check(sown!=null&&sowEngine.Sparks.Count>=10&&sowEngine.SowGlow>.9&&sowEngine.SowSlot==sown.slot,"Sowing seeds kicks up soil and lights the spot");
+                    sowRenderer.Render(sowEngine);
+                    int changed=0;
+                    for(int sy2=0;sy2<ch;sy2++)for(int sx2=0;sx2<cw;sx2++)if(sowRenderer.PixelAt(sx2,sy2)!=calm[sy2*cw+sx2])changed++;
+                    check(changed>=8,"A freshly sown spot paints visible sparks");
+                    int flashX=gardenConfig.slots[sown.slot].x,flashY=gardenConfig.slots[sown.slot].y;
+                    int brightest=0,bx=0,by=0;
+                    for(int dy=-12;dy<=-3;dy++)for(int dx=-4;dx<=4;dx++){
+                        int p=sowRenderer.PixelAt(flashX+dx,flashY+dy);
+                        int lum=((p>>16)&255)+((p>>8)&255)+(p&255);
+                        if(lum>brightest){brightest=lum;bx=flashX+dx;by=flashY+dy;}
+                    }
+                    check(brightest>600,"Sowing flashes a bright marker above the seed (best "+brightest+" at "+bx+","+by+" center "+flashX+","+(flashY-9)+"="+sowRenderer.PixelAt(flashX,flashY-9)+")");
+                }
+                for(int i=0;i<60;i++)sowEngine.Advance(.05);
+                check(sowEngine.Sparks.Count==0&&sowEngine.SowGlow==0,"Sowing sparks settle back into the soil on their own");
+                var offlineSow=new GardenEngine(gardenConfig,null,56);
+                offlineSow.Plant(gardenConfig.species[0].id);
+                offlineSow.CatchUp(900);
+                check(offlineSow.Sparks.Count==0&&offlineSow.SowGlow==0,"Offline catch-up discards leftover sowing sparks");
+                var spreadEngine=Spread(gardenConfig,21);
+                for(int i=0;i<7200&&spreadEngine.Plants.Count<3;i++)spreadEngine.Advance(.5);
+                check(spreadEngine.Plants.Count>2,"Blooming plants slowly add new plants");
+                for(int i=0;i<60000&&!spreadEngine.Full;i++){spreadEngine.Advance(.5);if(spreadEngine.Critical)spreadEngine.Water();}
+                check(spreadEngine.Full&&spreadEngine.Plants.Count==gardenConfig.maxPlants,"The garden stops spreading at its capacity");
+                check(spreadEngine.Plant("catnip")==null,"A full garden rejects new seeds");
+                var windEngine=Spread(gardenConfig,5);
+                bool petals=false;
+                for(int i=0;i<9000&&!petals;i++){windEngine.Advance(.5);petals=windEngine.Petals.Count>0;}
+                check(petals,"Blooming flowers release petals when wind passes");
+                check(windEngine.Petals.All(p2=>p2.life>0),"Petals keep a finite lifetime");
+                var foliageEngine=Foliage(gardenConfig,5);
+                for(int i=0;i<12000;i++)foliageEngine.Advance(.5);
+                check(foliageEngine.Petals.Count==0,"Foliage-only species never shed petals");
+                check(Math.Abs(GardenEngine.OfflineSeconds(new GardenState{savedAt=DateTime.UtcNow.AddHours(-100).ToString("o")})-6*3600)<2,"Offline catch-up is capped at six hours");
+                check(GardenEngine.OfflineSeconds(new GardenState{savedAt=DateTime.UtcNow.AddHours(-1).ToString("o")})>3500,"Offline catch-up replays real elapsed time");
+                var resumedState=new GardenState{moisture=1};
+                resumedState.plants.Add(new GardenPlant(gardenConfig.species[0].id,0,.4,resumedState.nextId++));
+                var resumed=new GardenEngine(gardenConfig,resumedState,21);double resumedGrowth=resumed.Plants[0].growth;resumed.CatchUp(1800);
+                check(resumed.Plants[0].growth>resumedGrowth,"Returning after a break advances the garden");
+                using(var renderer=new GardenRenderer(gardenConfig)){
+                    renderer.Render(garden);
+                    check(renderer.Opaque(gardenConfig.bed.left+30,gardenConfig.bed.bottom-6),"The planted bed renders visible pixels");
+                    check(!renderer.Opaque(1,1)&&!renderer.Opaque(gardenConfig.canvas.width-2,1),"Garden corners stay transparent");
+                    int sky=0;for(int sx=2;sx<gardenConfig.canvas.width-2;sx++)for(int sy=1;sy<gardenConfig.fence.top-2;sy++)if(renderer.Opaque(sx,sy))sky++;
+                    check(!renderer.Opaque(1,1)&&sky<60,"The sky above the fence stays open apart from a few birds");
+                    check(renderer.Opaque(16,22)&&renderer.Opaque(18,20),"A perched bird reads above the fence rail");
+                    var frame=renderer.Frame(2);
+                    check(frame.Width==gardenConfig.canvas.width*2&&frame.Height==gardenConfig.canvas.height*2,"Garden frames scale by whole pixels");
+                    var half=renderer.Frame(1.5);
+                    check(half.Width==(int)Math.Round(gardenConfig.canvas.width*1.5)&&half.Height==(int)Math.Round(gardenConfig.canvas.height*1.5),"Garden frames also scale by fractional steps");
+                    check(Preferences.GardenScales.Length==8&&Math.Abs(Preferences.GardenScales[0]-2.5)<.001&&Math.Abs(Preferences.GardenScales[7]-6)<.001,"Garden zoom offers 2.5x through 6x");
+                    check(Math.Abs(Preferences.SnapGardenScale(1)-2.5)<.001&&Math.Abs(Preferences.SnapGardenScale(9)-6)<.001&&Math.Abs(Preferences.SnapGardenScale(3.2)-3)<.001&&Math.Abs(Preferences.SnapGardenScale(0)-2.5)<.001,"Garden zoom snaps onto the offered steps");
+                    check(Math.Abs(new Preferences().GardenScale-3)<.001,"The garden opens at 3x by default");
+                    check(renderer.Opaque(gardenConfig.bed.left+30,gardenConfig.bed.bottom-6),"Soil keeps rendering visible pixels after the texture pass");
+                    var dry=new GardenEngine(gardenConfig,new GardenState{moisture=0},21);
+                    renderer.Render(dry);
+                    check(renderer.Opaque(8,9),"A dry garden shows the water reminder droplet");
+                    renderer.Render(garden);
+                    check(!renderer.Opaque(8,9),"The water reminder disappears once watered");
+                    using(var stream=new MemoryStream()){frame.Save(stream,System.Drawing.Imaging.ImageFormat.Png);check(stream.Length>2000,"Garden frame encodes as a real image");}
+                }
+                rejected=false;try{var bad=Json.Read<GardenConfig>(Path.Combine(root,"config","garden.json"));bad.slots[0].x=1;bad.Prepare();}catch(InvalidDataException){rejected=true;}check(rejected,"Garden slots outside the bed are rejected");
+                rejected=false;try{var bad=Json.Read<GardenConfig>(Path.Combine(root,"config","garden.json"));bad.species[0].growSeconds=0;bad.Prepare();}catch(InvalidDataException){rejected=true;}check(rejected,"Impossible garden growth timing is rejected");
             }}catch(Exception ex){failures.Add(ex.ToString());}
             Json.Write(report,new{passed=failures.Count==0,checks=checks.Count,failures=failures,verified=checks});return failures.Count==0?0:1;
+        }
+        static GardenEngine Spread(GardenConfig config,int seed){
+            var state=new GardenState();string flowering=config.species.First(s=>s.Flowering).id;
+            state.plants.Add(new GardenPlant(flowering,0,1,state.nextId++));
+            state.plants.Add(new GardenPlant(flowering,4,1,state.nextId++));
+            return new GardenEngine(config,state,seed);
+        }
+        static GardenEngine Foliage(GardenConfig config,int seed){
+            var state=new GardenState();string leafy=config.species.First(s=>!s.Flowering).id;
+            state.plants.Add(new GardenPlant(leafy,0,1,state.nextId++));
+            state.plants.Add(new GardenPlant(leafy,4,1,state.nextId++));
+            return new GardenEngine(config,state,seed);
         }
         public static int Smoke(string root,string report){
             Storage.TestDirectory=Path.Combine(Path.GetDirectoryName(report),"smoke-data");
@@ -198,13 +322,30 @@ namespace Catcon {
                         uint endGdi=Native.GetGuiResources(Process.GetCurrentProcess().Handle,0);int style=Native.GetWindowLong(pet.Handle,-20);
                         bool layered=(style&0x80000)!=0,noActivate=(style&0x08000000)!=0,tool=(style&0x80)!=0;
                         bool foreground=before==Native.GetForegroundWindow();
+                        bool gardenLayered=pet.Garden!=null&&(Native.GetWindowLong(pet.Garden.Handle,-20)&0x80000)!=0;
+                        bool minZoom=false,interactionOk=true;
+                        if(pet.Garden!=null){
+                            double originalScale=pet.Settings.GardenScale;
+                            pet.Settings.GardenScale=2.5;pet.Garden.ApplyScale();Application.DoEvents();
+                            minZoom=pet.Garden.Width==(int)Math.Round(pet.Garden.Renderer.Width*2.5)&&pet.Garden.Height==(int)Math.Round(pet.Garden.Renderer.Height*2.5);
+                            pet.Settings.GardenScale=6;pet.Garden.ApplyScale();Application.DoEvents();
+                            bool maxZoom=pet.Garden.Width==(int)Math.Round(pet.Garden.Renderer.Width*6.0)&&pet.Garden.Height==(int)Math.Round(pet.Garden.Renderer.Height*6.0);
+                            minZoom=minZoom&&maxZoom;
+                            pet.Settings.GardenScale=originalScale;pet.Garden.ApplyScale();Application.DoEvents();
+                            string clip=pet.Garden.PickInteraction();
+                            interactionOk=clip==null||pet.Content.Skin.clips.ContainsKey(clip);
+                            pet.Garden.Renderer.Render(pet.Garden.Engine);
+                            pet.Garden.Renderer.Frame(4).Save(Path.Combine(Path.GetDirectoryName(report),"garden-live.png"),System.Drawing.Imaging.ImageFormat.Png);
+                        }
                         using(var panel=new CompanionPanel(pet,root)){
                             panel.Show();Application.DoEvents();
                             using(var bmp=new Bitmap(panel.Width,panel.Height)){panel.DrawToBitmap(bmp,new Rectangle(0,0,bmp.Width,bmp.Height));bmp.Save(Path.Combine(Path.GetDirectoryName(report),"control-panel.png"),System.Drawing.Imaging.ImageFormat.Png);}
+                            panel.Select(CompanionPanel.Section.Garden);Application.DoEvents();
+                            using(var bmp=new Bitmap(panel.Width,panel.Height)){panel.DrawToBitmap(bmp,new Rectangle(0,0,bmp.Width,bmp.Height));bmp.Save(Path.Combine(Path.GetDirectoryName(report),"control-panel-garden.png"),System.Drawing.Imaging.ImageFormat.Png);}
                             panel.Close();
                         }
-                        bool passed=layered&&noActivate&&tool&&foreground&&endGdi<=startGdi+8;
-                        Json.Write(report,new{passed=passed,layered=layered,noActivate=noActivate,toolWindow=tool,keptForeground=foreground,gdiBefore=startGdi,gdiAfter=endGdi,renderedExtraFrames=240});exit=passed?0:1;
+                        bool passed=layered&&noActivate&&tool&&foreground&&gardenLayered&&minZoom&&interactionOk&&endGdi<=startGdi+8;
+                        Json.Write(report,new{passed=passed,layered=layered,noActivate=noActivate,toolWindow=tool,keptForeground=foreground,gardenLayered=gardenLayered,gardenZoomRange=minZoom,gardenInteraction=interactionOk,gdiBefore=startGdi,gdiAfter=endGdi,renderedExtraFrames=240});exit=passed?0:1;
                     }catch(Exception ex){Json.Write(report,new{passed=false,error=ex.ToString()});}finally{pet.Close();}
                 };
                 Application.Run(pet);timer.Dispose();

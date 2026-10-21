@@ -111,7 +111,7 @@ begin
     '运行环境：' + Status + #13#10#13#10 +
     '程序默认安装在当前用户目录，无需管理员权限。'#13#10 +
     '覆盖升级沿用原安装目录，保留位置、显示大小等设置和自定义皮肤。'#13#10 +
-    '旧行为配置、识别规则和默认皮肤源文件会先备份，再更新到新版。'#13#10 +
+    '旧行为配置、识别规则、花园配置和默认皮肤源文件会先备份，再更新到新版。'#13#10 +
     '卸载仅移除安装器管理的程序文件，保留用户设置及备份。');
 end;
 
@@ -148,7 +148,7 @@ end;
 procedure BackupExistingConfiguration;
 var BackupDir, BackupBase, Source: String; Files: TArrayOfString; I, Suffix: Integer; HasOldFiles: Boolean;
 begin
-  Files := ['config\behaviors.json', 'config\classifiers.json', 'assets\skins\mikan\skin.json'];
+  Files := ['config\behaviors.json', 'config\classifiers.json', 'config\garden.json', 'assets\skins\mikan\skin.json'];
   HasOldFiles := False;
   for I := 0 to GetArrayLength(Files)-1 do
     if FileExists(ExpandConstant('{app}\') + Files[I]) then HasOldFiles := True;

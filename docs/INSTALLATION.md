@@ -1,6 +1,6 @@
 # 安装与覆盖升级
 
-双击 `Catcon-1.6.1-Setup.exe` 即可安装，无需手工解压或分别复制资源文件。默认装在 `%LOCALAPPDATA%\Programs\Catcon`，可更换安装位置。安装器创建开始菜单入口、可选桌面快捷方式，并登记 Windows「已安装的应用」卸载入口。
+双击 `Catcon-1.8.0-Setup.exe` 即可安装，无需手工解压或分别复制资源文件。默认装在 `%LOCALAPPDATA%\Programs\Catcon`，可更换安装位置。安装器创建开始菜单入口、可选桌面快捷方式，并登记 Windows「已安装的应用」卸载入口。
 
 安装器本身为原生 Windows 程序，不依赖 .NET；支持 Windows 10 / 11 的 x86 / x64 系统。猫咪需要 .NET Framework 4.8 或兼容的更高版本。已具备运行库时，安装全程无需联网，也不需要管理员权限。缺少运行库时，安装器先释放随包携带的微软官方 Web 安装程序，再请求管理员授权下载、安装所需组件；这一步需要联网。运行库取消、安装失败或仍未满足要求时，不继续部署猫咪。若微软安装程序要求重启，会提示先保存工作并重启，再次运行安装包后继续。
 
@@ -14,6 +14,7 @@
 
 - `config/behaviors.json`：动作权重、情景概率及交互阈值。
 - `config/classifiers.json`：应用识别和智能兜底规则。
+- `config/garden.json`：花圃的画布、调色板、种植位、品种、装饰与湿度 / 分株 / 风参数；改了它就能换花的样子。
 - `assets/skins/mikan/skin.json`：默认皮肤的原生像素源文件。
 
 如果修改过默认配置，可从备份中挑选需要的改动迁回新版；备份不会自动覆盖新版本的规则和新增字段。建议自定义皮肤另取目录名，避免直接修改默认蜜柑文件。
@@ -38,11 +39,13 @@ Inno Setup 工具和微软 .NET Web 安装程序均按固定 SHA-256 校验，�
 
 `build-installer.ps1` 自动选择 `dist/Catcon-x.y.z` 中版本最高的一项，并从实际 EXE 读取版本，生成 `dist/Catcon-x.y.z-Setup.exe`。也可使用 `-ReleaseDirectory` 指定发布目录、`-Compiler` 指定已安装的 Inno Setup。后续版本须保留脚本内的固定安装身份和安装模式。
 
+版本号只在 `src/AssemblyInfo.cs` 里写一次，`scripts/build.ps1` 通过 `scripts/release-info.ps1` 读取它来决定发布目录名、ZIP 名和校验和清单，`scripts/test.ps1` 与 `scripts/verify-package.ps1` 也从同一处取路径，避免出现「改了一处、别的脚本还指着旧版本」的情况。发版时只改那一行 `AssemblyVersion` / `AssemblyFileVersion`。
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/test-installer.ps1
 ```
 
-安装回归使用随机测试身份、工作区内的中文空格路径及测试快捷方式，实际验证首次安装、1.6.0 → 1.6.1 原位升级、配置备份、设置与皮肤保留、同版本修复、阻止降级、卸载与保留数据。报告在 `artifacts/installer-test-results.json`，详细安装日志在其记录的测试目录。测试不启动日常猫咪实例；缺失运行库、UAC 取消和运行库要求重启的流程仍需在相应干净虚拟机中验收。
+安装回归使用随机测试身份、工作区内的中文空格路径及测试快捷方式，实际验证首次安装、1.7.0 → 1.8.0 原位升级、配置备份（含 `config/garden.json`）、设置与皮肤保留、同版本修复、阻止降级、卸载与保留数据。报告在 `artifacts/installer-test-results.json`，详细安装日志在其记录的测试目录。测试不启动日常猫咪实例；缺失运行库、UAC 取消和运行库要求重启的流程仍需在相应干净虚拟机中验收。
 
 安装器尚未使用商业代码签名证书签名。构建后 `dist/SHA256SUMS.txt` 包含便携程序、ZIP 和安装 EXE 的校验值。
 

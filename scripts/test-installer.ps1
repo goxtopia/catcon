@@ -1,7 +1,9 @@
-param([string]$BaselineVersion='1.6.0',[string]$CurrentVersion='1.6.1')
+param([string]$BaselineVersion='1.7.0',[string]$CurrentVersion='')
 $ErrorActionPreference = 'Stop'
-foreach ($version in @($BaselineVersion,$CurrentVersion)) { if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Installer test versions must use x.y.z format.' } }
 $projectRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'release-info.ps1')
+if (-not $CurrentVersion) { $CurrentVersion = (Get-CatconRelease -ProjectRoot $projectRoot).Version }
+foreach ($version in @($BaselineVersion,$CurrentVersion)) { if ($version -notmatch '^\d+\.\d+\.\d+$') { throw 'Installer test versions must use x.y.z format.' } }
 $identity = 'Catcon.InstallerTest.' + [Guid]::NewGuid().ToString('N')
 $testRoot = Join-Path $projectRoot ('artifacts/installer-validation/' + $identity)
 $installDir = Join-Path $testRoot (([string][char]0x5B89 + [char]0x88C5) + ' path/Catcon')
@@ -41,7 +43,7 @@ try {
     $settingsHash = Hash $testSettings
     $skinHash = Hash $customSkin
     $modified = @{}
-    foreach ($relative in @('config/behaviors.json','config/classifiers.json','assets/skins/mikan/skin.json')) {
+    foreach ($relative in @('config/behaviors.json','config/classifiers.json','config/garden.json','assets/skins/mikan/skin.json')) {
         $path = Join-Path $installDir $relative
         [IO.File]::AppendAllText($path,"`n")
         $modified[$relative] = Hash $path

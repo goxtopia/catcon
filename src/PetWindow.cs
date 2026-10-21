@@ -11,10 +11,11 @@ namespace Catcon {
         public Content Content {get;private set;}public BehaviorEngine Engine {get;private set;}
         public readonly Preferences Settings;
         public ContextMonitor Monitor {get;private set;}
+        public GardenWindow Garden {get;private set;}
         public string OverrideContext;
         readonly string root;readonly Timer timer;readonly Stopwatch watch=new Stopwatch();
         readonly NotifyIcon tray;readonly Icon appIcon;
-        Bitmap lastPixels;CompanionPanel panel;ContextMenuStrip menu;
+        Bitmap lastPixels;CompanionPanel panel;ContextMenuStrip menu;ToolStripMenuItem gardenShow,gardenSeeds;
         bool down,dragged,disposed;Point pressCursor,pressLocation;double lastTime,saveAt;
         public event Action StatusChanged;
         public PetWindow(string root,Preferences preferences) {
@@ -26,7 +27,10 @@ namespace Catcon {
             Engine.X=Settings.X??(work.Right-Engine.Width-60);Engine.Y=Settings.Y??(work.Bottom-Engine.Width-20);KeepVisible();
             Location=new Point((int)Engine.X,(int)Engine.Y);
             using(var pixels=Engine.Animation.Render())using(var iconBitmap=Animator.Scale(pixels,2))appIcon=Native.CreateIcon(iconBitmap);
-            Icon=appIcon;menu=BuildMenu();
+            Icon=appIcon;
+            try{Garden=new GardenWindow(this,root);if(Settings.GardenVisible)Garden.Show();}
+            catch(Exception ex){Storage.Log(ex);Garden=null;}
+            menu=BuildMenu();
             tray=new NotifyIcon{Icon=appIcon,Text="蜜柑 · 右键猫咪打开菜单",ContextMenuStrip=menu,Visible=true};
             tray.DoubleClick+=delegate{OpenPanel();};
             timer=new Timer{Interval=33};timer.Tick+=Tick;
@@ -75,7 +79,7 @@ namespace Catcon {
         protected override void OnMouseUp(MouseEventArgs e){base.OnMouseUp(e);if(e.Button==MouseButtons.Left)ReleasePointer();}
         protected override void OnMouseDoubleClick(MouseEventArgs e){base.OnMouseDoubleClick(e);if(e.Button==MouseButtons.Left)OpenPanel();}
         void ReleasePointer(){if(!down)return;down=false;Capture=false;if(dragged)Engine.EndDrag();else Engine.Emit("pet");Save();}
-        void DisplayChanged(object sender,EventArgs e){if(IsHandleCreated&&!IsDisposed)BeginInvoke((Action)delegate{KeepVisible();DrawPet();});}
+        void DisplayChanged(object sender,EventArgs e){if(IsHandleCreated&&!IsDisposed)BeginInvoke((Action)delegate{KeepVisible();DrawPet();if(Garden!=null)Garden.ApplyScale();});}
         void KeepVisible(){
             var center=new Point((int)Engine.X+Engine.Width/2,(int)Engine.Y+Engine.Width/2);Engine.KeepInside(Screen.FromPoint(center).WorkingArea);
         }
@@ -84,12 +88,37 @@ namespace Catcon {
             m.Items.Add("蜜柑的小窝…",null,delegate{OpenPanel();});m.Items.Add(new ToolStripSeparator());
             m.Items.Add("摸摸头",null,delegate{PlayEvent("pet");});m.Items.Add("喂小鱼干",null,delegate{Play("eat");});m.Items.Add("喝点水",null,delegate{Play("drink");});m.Items.Add("玩毛线球",null,delegate{Play("yarn");});
             m.Items.Add("扑向鼠标（3 秒后）",null,delegate{ScheduleChase();});
+            m.Items.Add(BuildGardenMenu());
             var animations=new ToolStripMenuItem("动作图鉴");foreach(var c in Content.Skin.clips){string id=c.Key;animations.DropDownItems.Add(c.Value.label,null,delegate{Play(id);});}m.Items.Add(animations);
             m.Items.Add(new ToolStripSeparator());
             var pause=new ToolStripMenuItem("暂停",null,delegate{Engine.Paused=!Engine.Paused;Changed();});m.Items.Add(pause);
             var top=new ToolStripMenuItem("始终置顶",null,delegate{Settings.Topmost=!Settings.Topmost;ApplySettings();});m.Items.Add(top);
             m.Items.Add("把猫找回来",null,delegate{Recall();});m.Items.Add(new ToolStripSeparator());m.Items.Add("退出 Catcon",null,delegate{Close();});
-            m.Opening+=delegate{pause.Text=Engine.Paused?"继续活动":"暂停";top.Checked=Settings.Topmost;};return m;
+            m.Opening+=delegate{
+                pause.Text=Engine.Paused?"继续活动":"暂停";top.Checked=Settings.Topmost;
+                if(gardenShow!=null){gardenShow.Checked=Settings.GardenVisible;gardenShow.Text=Settings.GardenVisible?"隐藏花园":"显示花园";gardenShow.Enabled=Garden!=null;}
+                if(gardenSeeds!=null)gardenSeeds.Enabled=Garden!=null&&!Garden.Engine.Full;
+            };
+            return m;
+        }
+        ToolStripMenuItem BuildGardenMenu(){
+            var garden=new ToolStripMenuItem("蜜柑的花园");
+            var show=new ToolStripMenuItem("显示花园",null,delegate{if(Garden!=null)Garden.SetVisible(!Settings.GardenVisible);});
+            garden.DropDownItems.Add(show);garden.DropDownItems.Add(new ToolStripSeparator());
+            garden.DropDownItems.Add("浇水",null,delegate{if(Garden!=null)Garden.Water();});
+            var seeds=new ToolStripMenuItem("播种");
+            if(Garden!=null)foreach(var species in Garden.Engine.Config.species){
+                GardenSpecies target=species;GardenWindow window=Garden;
+                seeds.DropDownItems.Add(species.name,null,delegate{if(!window.PlantSeed(target.id))MessageBox.Show("花圃已经长满了。","蜜柑的花园");});
+            }
+            garden.DropDownItems.Add(seeds);
+            garden.DropDownItems.Add("让蜜柑去花园看看花",null,delegate{if(Garden!=null){Garden.Show();Garden.Draw();VisitGarden(Garden.RestPoint,Garden.PickInteraction());}});
+            garden.DropDownItems.Add("打开花园面板…",null,delegate{OpenPanel(CompanionPanel.Section.Garden);});
+            garden.DropDownItems.Add(new ToolStripSeparator());
+            garden.DropDownItems.Add("收起花园",null,delegate{if(Garden!=null)Garden.SetVisible(false);});
+            garden.DropDownItems.Add("花园设置…",null,delegate{OpenPanel(CompanionPanel.Section.Garden);});
+            gardenShow=show;gardenSeeds=seeds;
+            return garden;
         }
         public void Play(string id){Engine.Paused=false;Engine.Play(id,true);DrawPet();Changed();}
         public void PlayEvent(string ev){Engine.Paused=false;Engine.Emit(ev);DrawPet();Changed();}
@@ -97,8 +126,35 @@ namespace Catcon {
             var delay=new Timer{Interval=3000};delay.Tick+=delegate{delay.Stop();delay.Dispose();if(!IsDisposed)PlayEvent("chase");};delay.Start();
         }
         public void Recall(){var area=Screen.FromPoint(Cursor.Position).WorkingArea;Engine.X=area.Right-Engine.Width-30;Engine.Y=area.Bottom-Engine.Width-10;KeepVisible();Show();Engine.Play(Content.Behavior.events["idle"],false);DrawPet();Save();}
-        public void OpenPanel(){if(panel==null||panel.IsDisposed)panel=new CompanionPanel(this,root);panel.Show();panel.Activate();}
-        public void ApplySettings(){Engine.PixelScale=Settings.Scale;TopMost=Settings.Topmost;Native.SetWindowPos(Handle,new IntPtr(Settings.Topmost?-1:-2),0,0,0,0,0x13);KeepVisible();DrawPet();Save();Changed();}
+        public void VisitGarden(Point rest){VisitGarden(rest,null);}
+        /// <summary>让蜜柑走到花圃；walkTo 非空时，到达后接着播这一段互动动作。</summary>
+        public void VisitGarden(Point rest,string arrivalClip){
+            if(Engine.Paused||Engine.Dragging||!Settings.Wander)return;
+            if(Settings.QuietGames&&(OverrideContext??Monitor.Category)=="gaming")return;
+            if(!Content.Skin.clips.ContainsKey("run"))return;
+            if(!String.IsNullOrEmpty(arrivalClip)&&!Content.Skin.clips.ContainsKey(arrivalClip))arrivalClip=null;
+            var area=Screen.FromPoint(rest).WorkingArea;
+            PointF spot=BehaviorEngine.Clamp(rest.X,rest.Y,area,Engine.Width);
+            Engine.Paused=false;
+            if(!String.IsNullOrEmpty(arrivalClip)){
+                BehaviorEngine target=Engine;
+                Engine.Arrived=delegate{if(target.Paused||target.Dragging)return;Play(arrivalClip);};
+            }
+            Engine.Play("run",true);Engine.Destination=spot;
+        }
+        public void NotifyGarden(string text){
+            if(tray==null||!Settings.GardenVisible)return;
+            try{tray.ShowBalloonTip(4000,"蜜柑的花园",text,ToolTipIcon.None);}catch{}
+        }
+        public void OpenPanel(){OpenPanel(CompanionPanel.Section.Home);}
+        public void OpenPanel(CompanionPanel.Section section){
+            if(panel==null||panel.IsDisposed)panel=new CompanionPanel(this,root,section);else panel.Select(section);
+            panel.Show();panel.Activate();
+        }
+        public void ApplySettings(){
+            Engine.PixelScale=Settings.Scale;TopMost=Settings.Topmost;Native.SetWindowPos(Handle,new IntPtr(Settings.Topmost?-1:-2),0,0,0,0,0x13);KeepVisible();DrawPet();Save();Changed();
+            if(Garden!=null){Garden.ApplyTopmost();Garden.ApplyScale();}
+        }
         public bool Reload(string skinId,out string error){
             Content next=null;
             try {
@@ -109,6 +165,6 @@ namespace Catcon {
         }
         void Changed(){if(StatusChanged!=null)StatusChanged();}
         public void Save(){Settings.X=(int)Engine.X;Settings.Y=(int)Engine.Y;Storage.Save(Settings);}
-        void DisposeResources(){if(disposed)return;disposed=true;SystemEvents.DisplaySettingsChanged-=DisplayChanged;timer.Stop();timer.Dispose();if(panel!=null)panel.Dispose();Save();tray.Visible=false;tray.Dispose();menu.Dispose();appIcon.Dispose();if(lastPixels!=null)lastPixels.Dispose();Content.Dispose();}
+        void DisposeResources(){if(disposed)return;disposed=true;SystemEvents.DisplaySettingsChanged-=DisplayChanged;timer.Stop();timer.Dispose();if(panel!=null)panel.Dispose();if(Garden!=null){Settings.GardenX=Garden.Left;Settings.GardenY=Garden.Top;Garden.Dispose();}Save();tray.Visible=false;tray.Dispose();menu.Dispose();appIcon.Dispose();if(lastPixels!=null)lastPixels.Dispose();Content.Dispose();}
     }
 }

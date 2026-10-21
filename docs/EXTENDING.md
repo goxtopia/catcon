@@ -142,6 +142,118 @@
 
 例如未知编辑器标题 `main.rs — cargo compile` 有源码文件、工具链、编译行为三个独立信号，可以判为 coding；单独重复 `compile` 只计一组弱证据，仍为 idle；`Codex Discord` 这样的冲突强线索也会放弃判断。所有数据在本地匹配，标题不保存、不上传。输入长度、单次正则时间与整段关键词推断时间均有限制。
 
+## 花园：品种、槽位与装饰
+
+花园的全部数值和美术参数在 `config/garden.json`，与皮肤包完全独立，`schemaVersion` 也是 1。启动时读取并校验，校验失败会记进 `errors.log` 并且不创建花园窗口（小窝的花园页会显示"花园没有加载起来"），猫咪本体不受影响。校验集中在 `GardenConfig.Validate()`，报错信息会指明是哪一项越界。
+
+### 画布与几何
+
+```json
+"canvas": { "width": 112, "height": 80 },
+"grass": { "top": 36, "left": 4, "right": 108 },
+"fence": { "top": 22, "spacing": 14 },
+"bed": { "left": 10, "top": 40, "right": 102, "bottom": 76, "inset": 4 }
+```
+
+`canvas` 宽度允许 64～220、高度 48～220，改大之后窗口的屏幕尺寸随之变化，但缩放倍数不变。`grass.top` 是草地的上沿，`fence.top` 是栅栏立柱的顶端，`fence.spacing` 是立柱间距（最小 6，会按画布宽度自动补到边缘）。`bed` 是翻好的土块，必须整体落在栅栏下方、画布之内；`inset` 是土块四周的木框厚度，会画出明暗两阶木色。
+
+### 色板
+
+`colors` 是一个扁平的名字到 `#RRGGBB`（或 `#AARRGGBB`）的映射，34 个键全部必需，缺一个就拒绝加载。土壤与植物用的是：`outline`、`soil` / `soilWet` / `soilDry` / `soilDark` / `soilLight`、`grass` / `grassLight` / `grassDark`；木石金属是：`wood` / `woodLight` / `woodDark`、`stone` / `stoneDark`、`metal` / `metalLight` / `metalDark`；光和水的：`glow`、`water` / `waterLight`；小东西的：`mushroomCap` / `mushroomStem`、`butterfly` / `butterflyWing`、`bird` / `birdLight` / `birdWing` / `beak`、`glass` / `glassLight`、`ceramic`、`paintA` / `paintB`、`gold`。土壤的三种颜色按湿度在湿润深褐、干燥浅褐之间插值，所以换土色时这两端要一起调，否则浇水前后会跳色。`glass` 是玻璃罩和观景球的本色、`glassLight` 是高光；`ceramic` 是陶土白，小矮人的袍子和野花都用它；`paintA` / `paintB` 是那对撞色（珊瑚红与雾蓝），风车叶片、彩灯、弹珠通用；`gold` 给橡皮鸭和金属小件；`bird` 是小鸟的背羽、`birdLight` 是胸腹的浅色、`birdWing` 是翅与尾、`beak` 是喙——四色缺一不可，因为鸟只有 8 像素宽，靠这四层才分得出头和尾。
+
+### 槽位
+
+```json
+"slots": [
+  { "x": 24, "y": 54, "scale": 0.92 },
+  { "x": 84, "y": 72, "scale": 1.0 }
+]
+```
+
+每个槽位是植株的落点，`x/y` 为土块内的原生像素坐标，`scale` 是这株的绘制缩放（0.5～1.6），靠后的排用大一点的 `scale` 就有了近大远小的层次。槽位数量允许 4～24，坐标必须落在 `bed` 之内，且不能重复；`maxPlants` 不得超过槽位数。默认 4 × 3 共 12 个，`y` 从 54 到 72 分三排，`scale` 依次 0.92 / 0.96 / 1.0。
+
+### 品种
+
+```json
+{
+  "id": "poppy",
+  "name": "虞美人",
+  "note": "薄薄的红花瓣，风一过就整朵晃。",
+  "growSeconds": 2160,
+  "height": 18,
+  "stems": 2,
+  "stemWidth": 1,
+  "leafPairs": 3,
+  "leafWidth": 3,
+  "leafRise": 0.35,
+  "stemColor": "#8fae62",
+  "leafColor": "#7aa055",
+  "leafDark": "#5d8043",
+  "flower": { "form": "poppy", "color": "#e2604c", "color2": "#b03f34", "core": "#34231d", "size": 4, "count": 1 }
+}
+```
+
+- `growSeconds`：从刚撒下到 100% 的秒数，最短 30。
+- `height`：成株的原生像素高度，范围是 6 到 `canvas.height - 24`，留出画布上方的空间给花瓣。
+- `stems`：主茎数量上限（1～4），实际茎数按进度从 1 递增到 `stems`。侧茎从离主茎 2～3 像素的土面钻出、向外岔开，比主茎矮一两成，风里各自错开相位，所以一株不会长成一束平行线。
+- `stemWidth`：1 或 2 像素（2 的品种根更壮）；`leafPairs`：1～6，实际每根茎最多画 2 对叶，多出来的编号用来决定叶子的出现时机，不会再堆在同一高度；`leafWidth`：1～4，按约 1.6 倍换算成叶长，3 大约画出 4～5 像素的叶子。
+- `leafRise`：叶片上扬系数 0～2。0.3 左右是贴地的平叶，1.2 以上接近灌木的斜挑叶。
+- `stemColor` / `leafColor` / `leafDark`：茎、叶亮面、叶暗面。叶子的高光是亮面提亮算出来的，叶片外沿还会自动补一圈由 `leafDark` 压暗的描边，因此换叶色时整株的轮廓会跟着换。
+- 茎的形状不是直线：起手竖直、中段按正弦鼓出去、顶梢被风带歪再回勾一点，叶片挂在同一条曲线上，所以放大看是一道弯的植株。
+- `flower.form`：花型，取 `cluster`（小穗簇）、`cup`（喇叭/杯状）、`daisy`（放射瓣）、`poppy`（大单瓣）、`spike`（竖穗）、`none`（不开花）。
+- `flower.size`（1～5）与 `flower.count`（1～6）控制花的大小和一支上的朵数；`color` 是最外层的花瓣色，`color2` 是内层/花背，`core` 是花心。
+
+`form` 为 `none` 时只需要 `size` 和 `count`，其余颜色字段可以省略，这株永远不会开花，因此也不会被风吹出花瓣。新增品种时如果想验证画出来的样子，用下文的花园导出命令生成一条七格阶段对照图，比在桌面上等十几分钟快得多。
+
+### 装饰
+
+```json
+"decorations": [
+  { "type": "sign", "x": 16, "y": 69 },
+  { "type": "can", "x": 95, "y": 74, "flip": true },
+  { "type": "butterfly", "x": 46, "y": 14, "scale": 1.2 }
+]
+```
+
+`type` 只接受下表里的名字，写错会在校验阶段报未知装饰。`x` 为 0 到画布宽度、`y` 为 1 到画布高度；`flip` 水平镜像（洒水壶反向摆放就用它），`scale` 为 0.5～2。装饰列表可以为空，数组内的顺序就是绘制顺序，靠后的会被画在上面。
+
+| 类型 | 是什么 | 动 |
+| --- | --- | --- |
+| `sign` | 插在土里的小木牌 | 静 |
+| `fairyLights` | 挂在栅栏上的彩灯串（默认跨 46 像素） | 灯泡会依次明暗 |
+| `lantern` | 角落的金属小灯 | 一圈柔光 |
+| `butterfly` | 蝴蝶 | 在基准点附近飞，会扇翅 |
+| `bird` | 停在栅栏横杆上的小鸟（`y` 填它站的那一行，`flip` 换朝向） | 转头、抖尾巴，十秒一轮 |
+| `gnome` | 尖帽子花园小矮人 | 静 |
+| `pinwheel` | 插在草地上的风车 | 叶片一直转 |
+| `cloche` | 罩着小苗的玻璃钟罩 | 静 |
+| `gazing` | 观景球（金属小底座） | 静 |
+| `baubles` | 撒在土上的玻璃弹珠 | 静 |
+| `duck` | 橡皮鸭 | 静 |
+| `mushrooms` | 一小丛蘑菇 | 静 |
+| `stones` | 三颗石子 | 静 |
+| `can` | 洒水壶 | 静 |
+
+`lantern` 和 `fairyLights` 属于后景，画在植株之前，其余都在植株之后。蝴蝶的位置由引擎时间驱动（在基准点上下左右各几像素内飘），风和花瓣不会推动它。
+
+### 湿度、分株与风
+
+```json
+"moisture": { "fullSeconds": 2700, "thirstyBelow": 0.34, "dryBelow": 0.08, "wiltSeconds": 1500 },
+"spread": { "chancePerMinute": 0.07, "minMoisture": 0.25 },
+"wind": { "minSeconds": 70, "maxSeconds": 210, "chance": 0.62, "durationSeconds": [3, 7], "petalsPerSecond": 11 }
+```
+
+`fullSeconds` 是湿度从 1 掉到 0 的秒数。`thirstyBelow` 是出现水滴徽章并开始拖慢生长的阈值，`dryBelow` 是生长几乎停滞（固定 12%）并开始累积枯萎的阈值，两者必须满足 `0 < dryBelow < thirstyBelow ≤ 1`。`wiltSeconds` 是枯萎从 0 涨到满的秒数，枯萎本身只会把生长再压掉最多 55%，不会倒退进度；浇水一次减 0.45。
+
+`spread.chancePerMinute` 是"每株盛开植物每分钟"的分株概率，0～1；`minMoisture` 是允许分株的最低湿度。实际效果是累加的，所以 0.07 配三株盛开约等于每分钟两成的概率。分株没有独立开关，把 `chancePerMinute` 设为 0 即可关闭。
+
+`wind` 只在有植株盛开时才有意义：每 `minSeconds`～`maxSeconds` 秒抽一次 `chance`，命中后持续 `durationSeconds` 区间内的随机秒数，按 `petalsPerSecond`（0～120）生成花瓣。花瓣颜色直接取开花品种的 `flower.color`，所以改品种花色会同时改掉花瓣。
+
+### 设置与小窝
+
+花园的三个用户设置存在 `settings.json`：`gardenVisible`（是否显示窗口）、`gardenScale`（2.5 / 3 / 3.5 / 4 / 4.5 / 5 / 5.5 / 6，默认 3；档位定义在 `Preferences.GardenScales`，写入其他数值会被 `SnapGardenScale` 吸附到最近的档位，越界则夹到 2.5 或 6）、`gardenVisits`（蜜柑是否自己来访）。窗口位置 `gardenX` / `gardenY` 在拖拽后写入，异常值会被夹回当前工作区。如果要彻底去掉花园，把 `PetWindow` 构造里创建 `GardenWindow` 的那一段移除即可，猫咪本体不依赖它。
+
 ## 校验与再导出
 
 `scripts/cat-daily-art.js` 和 `scripts/build-daily-animations.js` 分别绘制、编排日常陪伴动作，`scripts/preview-daily.ps1` 导出本组对照预览。暖杯的热气演示了装饰组件独立 `spriteCycle`，且放在头部之后，避免盖住五官；前景爪与道具必须在每帧同步更新位置。
@@ -149,5 +261,7 @@
 `scripts/cat-extra-art.js` 绘制新故事组件，`scripts/build-extra-animations.js` 编排姿态、组件遮挡和逐帧节奏；由现有生成入口自动载入。新增故事优先复用统一脸部库。`scripts/preview-stories.ps1` 在构建后导出默认坐姿加四个新故事的并列 GIF，以及全部新关键帧图；输出在 `assets/skins/mikan/`，再次构建即可包含进发布包。
 
 数据内所有引用在加载时验证；编译后的 exe 提供 `--self-test report.json`。动画条、GIF、HTML 为导出产物，手工修改运行数据后需要 `--export-art 输出根目录` 才会同步更新。运行时不依赖动画条。
+
+花园的复核图用 `--export-garden 输出目录` 生成：满园、起风、干旱三张 4 倍场景图，加上每个品种一条七格生长阶段对照（`garden-stages-<id>.png`）。它用固定种子临时构造状态，既不读也不写 `garden.json` 存档，改完 `garden.json` 可以直接重跑比较前后差异。
 
 导出的 `frames/manifest.json` 为 schemaVersion 2：每个动作含 `frames`、`durations`（毫秒数组）与 `playback`。导出会合并身体关键帧和组件周期的时间边界，因此 PNG 格数可以多于身体关键帧数；相邻事件间隔最短可为 10ms，源关键帧和组件周期仍至少 30ms。外部预览器须按导出的 `durations` 播放，不能固定按 10fps，也不能再用身体帧数解释 PNG 条。

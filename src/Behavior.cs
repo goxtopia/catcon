@@ -14,15 +14,19 @@ namespace Catcon {
         public readonly Animator Animation;
         public double X,Y;public int PixelScale=3;
         public bool Paused,Dragging;
+        public PointF? Destination;
+        /// <summary>走到外部目的地（例如花圃）后触发一次，用来接着做一段互动。</summary>
+        public Action Arrived;
         public string LastEvent {get;private set;}public string Context {get;private set;}
         double clock,activityClock,nextDecision,lockedUntil,lastStartle=-100,dwell;
         Point previousCursor;bool hadCursor;
         PointF? target,arrivalTarget;PointF leapStart;string motionClip;
         public bool Moving {get{return target.HasValue;}}
+        public bool Protected {get{return clock<lockedUntil;}}
         public int Width {get{return Animation.Skin.canvas*PixelScale;}}
         public BehaviorEngine(Skin skin,BehaviorConfig config,int seed){this.config=config;random=new Random(seed);rules=new BehaviorRules(skin,config,random);Animation=new Animator(skin);Animation.Play(config.events["idle"]);Context="idle";LastEvent="刚刚醒来";nextDecision=8;}
         public void Emit(string ev){Play(config.events[ev],true);LastEvent=ev;}
-        public void Play(string clip,bool protect){Animation.Play(clip);rules.Played(clip,activityClock);target=null;arrivalTarget=null;motionClip=null;dwell=0;lockedUntil=protect?clock+Animation.Clip.seconds:clock;nextDecision=clock+Animation.Clip.seconds;}
+        public void Play(string clip,bool protect){Animation.Play(clip);rules.Played(clip,activityClock);target=null;arrivalTarget=null;motionClip=null;dwell=0;lockedUntil=protect?clock+Animation.Clip.seconds:clock;nextDecision=clock+Animation.Clip.seconds;Destination=null;}
         public void BeginDrag(){Dragging=true;Emit("drag");}
         public void EndDrag(){Dragging=false;Emit("release");hadCursor=false;}
         public void Advance(double dt,InputFrame input,double? elapsedSeconds=null){
@@ -85,7 +89,7 @@ namespace Catcon {
                     tx=input.Cursor.X-Width*(Animation.FaceRight?1-ax:ax);ty=input.Cursor.Y-Width*ay;
                 }
                 if(clip.motion=="retreat"){double dx=X+Width*.5-input.Cursor.X,dy=Y+Width*.55-input.Cursor.Y;double len=Math.Max(1,Math.Sqrt(dx*dx+dy*dy));tx+=dx/len*180;ty+=dy/len*100;}
-                if(clip.motion=="wander"){tx+=random.Next(-260,261);ty+=random.Next(-90,91);}
+                if(clip.motion=="wander"){if(Destination.HasValue){tx=Destination.Value.X;ty=Destination.Value.Y;}else{tx+=random.Next(-260,261);ty+=random.Next(-90,91);}}
                 target=Clamp((float)tx,(float)ty,input.WorkArea,Width);
                 Clip landingClip;
                 if(clip.motion=="cursor"&&clip.onArrival!=null&&Animation.Skin.clips.TryGetValue(clip.onArrival,out landingClip)&&landingClip.motion=="leap"){
@@ -101,8 +105,11 @@ namespace Catcon {
             if(len2<=Math.Max(2,step)){
                 X=end.X;Y=end.Y;target=null;string arrival=clip.onArrival;
                 PointF? landing=arrivalTarget;
+                bool external=Destination.HasValue;
+                Destination=null;
                 Play(arrival??config.events["idle"],arrival!=null);
                 if(landing.HasValue&&Animation.Clip.motion=="leap")target=landing;
+                if(external&&Arrived!=null){var callback=Arrived;Arrived=null;callback();}
                 return;
             }
             if(clip.motion!="cursor")Animation.FaceRight=deltaX>0;

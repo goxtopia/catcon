@@ -16,6 +16,20 @@ Animator ← skin.json: pose + frame patches + deformers
 UpdateLayeredWindow → transparent, non-activating pet window
 ```
 
+花园是一条与猫咪平行的支线，共用窗口与渲染基础设施，但不共用行为引擎：
+
+```text
+config/garden.json → GardenConfig（校验后的数据）
+        ↓
+GardenEngine ← GardenState（%LOCALAPPDATA%\Catcon\garden.json）+ 时间步长
+        ↓
+GardenRenderer ← PixelSurface（原生 112 × 80 ARGB）+ 物种程序化绘制
+        ↓
+Frame(zoom) 缓存整倍位图 → SetLayer → 第二个透明悬浮窗口
+```
+
+猫咪"走过去"这件事只跨一层：`BehaviorEngine.Destination`（`PointF?`）让自主散步分支改去外部坐标，到达后自行清除；花园只负责算出该坐哪，不推动画状态。到达之后要接一段专属动作时，调用方挂 `BehaviorEngine.Arrived`（`Action`），它在 `Destination` 被清掉、落位动作开播之后才触发一次并自行摘除——这样"走过去"和"到了做什么"是两个独立决定，行为引擎不需要认识花园，花园也不需要知道动画怎么播。
+
 - `Data.cs`：版本化数据模型、严格引用校验、原子设置保存；素材加载失败不替换正在运行的素材。
 - `Animation.cs`：复制基础部件状态 → 帧覆盖 → 独立组件像素周期 → 变形器 → z 顺序合成。每帧先在原生 32px 画布绘制，最终整数倍放大，避免线性插值模糊。
 - `Behavior.cs`：独立于 Windows API 的状态机，注入鼠标、工作区、情境和时间步长，便于可重现测试。常规抽取按 `contextChance` 混合情境池与日常池，再按池内权重选择；允许移动时另有散步覆盖概率。临时交互动作有保护时段。
@@ -23,8 +37,12 @@ UpdateLayeredWindow → transparent, non-activating pet window
 - `BehaviorRuleValidation.cs`：验证分支概率、时长范围、保护交互、暂停、游戏过滤、漏过窗口和旧配置兼容。
 - `Context.cs`：Win32 前台快照、应用身份规则、带置信门槛的关键词推断、正则超时和防抖。产品信息按 PID 与启动时间缓存，最多保留 64 项；读取失败仍可分类。标题不进入设置或日志。
 - `Native.cs`：隔离 P/Invoke；DC、HBITMAP 与 HICON 均在 finally / Dispose 中释放。
+- `Garden.cs`：花园数据模型、严格校验和纯模拟引擎。不使用 Windows API、不持有位图，可注入随机种子、可离线补算，因此能在自测里直接断言生长、干枯、分株与风。
+- `GardenArt.cs`：`PixelSurface` 提供逐像素混合、圆盘、线段与整倍放大缓存；`GardenRenderer` 按栅栏 → 草地 → 花床 → 灯笼 → 植株 → 装饰 → 花瓣 → 水花 → 水滴徽章的顺序绘制全部美术，没有外部图片依赖。
+- `GardenWindow.cs`：40 ms 定时器驱动的第二个分层窗口；单击浇水、拖拽移动、右键菜单、双击开面板，并负责来访节奏与托盘提醒。
+- `GardenExport.cs`：用固定随机种子构造满园、起风、干旱与各品种生长阶段四类场景，导出 4 倍透明 PNG 供复核。
 - `PetWindow.cs`：30 fps 的单线程 UI 定时器、鼠标捕获、拖拽、工作区限制、托盘、显示器变更与资源管理。
-- `CompanionPanel.cs`：独立陪伴面板、实时动画预览、动作图鉴、设置、手选情境与素材热加载。
+- `CompanionPanel.cs`：独立陪伴面板、实时动画预览、动作图鉴、花园页、设置、手选情境与素材热加载。
 - `ArtExport.cs`：导出透明 PNG 动画条、图鉴、GIF 与可离线浏览的 HTML。
 - `Validation.cs`：无外部测试框架的可执行回归测试和真实分层窗口烟雾测试。
 
@@ -42,6 +60,26 @@ UpdateLayeredWindow → transparent, non-activating pet window
 
 窗体使用 WS_EX_LAYERED / WS_EX_NOACTIVATE / WS_EX_TOOLWINDOW，拖拽时捕获鼠标，不创建任务栏条目。背景 alpha 为 0，可见像素接受交互。置顶通过 SetWindowPos 切换，不激活窗口。
 
+## 花园的时序与状态
+
+花园窗口独立于猫咪窗口，各有一个 40 ms 定时器，但两者都不假设对方的帧率：花朵生长只接收 `Engine.Advance(dt)` 的经过时间，单步上限 0.5 秒，窗口调度停顿不会把一次抖动换算成几分钟的生长。
+
+模拟与渲染严格分离。`GardenEngine` 只维护 `moisture`、每株的 `growth` / `wilt`、花瓣列表和一次性粒子列表 `Sparks`；`GardenRenderer` 只读取这些数字，用槽位坐标加物种参数程序化画出茎、叶、花，不在引擎里保存任何位图或颜色对象。渲染器每帧重画 `PixelSurface`，`Frame(zoom)` 再按目标尺寸做最近邻放大并写进一张按倍数缓存的位图，`UpdateLayeredWindow` 只负责把这张位图推上屏。`Region(x, y, w, h, scale)` 是同一套最近邻规则的区域版，只给导出工具用——把刚撒种那一小块放大 12 倍写成细节图，运行时不用它。
+
+放大对小数倍也保持硬边：目标尺寸取整后，第 `d` 个目标像素取源图 `floor((d+0.5)·src/dst)`，因此 1.5 倍会得到宽度 1 和 2 交替的像素列，而不是插值出来的糊边。缓存的位图只是缓冲区——每次 `Frame` 都会重新贴一遍像素，内容永远跟着最近一次 `Render` 走，不会出现同一个 `Bitmap` 被当成多帧复用的陈旧画面。
+
+水分是一条单调递减的曲线，`dt / fullSeconds` 每帧扣除；生长速率由当前湿度反查：湿度 ≥ `thirstyBelow` 时按满速，落在 `dryBelow` 与 `thirstyBelow` 之间线性降到 35%，低于 `dryBelow` 固定 12%，同时按 `dt / wiltSeconds` 累积枯萎，枯萎再把生长速率最多再压掉 55%。浇水把湿度设回 1、枯萎减 0.45，并生成 10 个水花粒子——它们是同一个粒子列表里的短寿命条目，只是颜色来自水色而不是花色。
+
+分株不是定时器，而是一个累积器：`spreadAccum += dt / 60 * chancePerMinute * 开花株数`，攒到 1 就立刻在随机空槽播种并清零。这样概率与真实时长成正比，与帧率无关；没有开花株时累积器直接归零，避免攒着一堆"欠账"在开花瞬间连爆几株。
+
+风与花瓣只在 `Advance` 的非离线路径里推进。起风与落瓣都依赖实时观感，离线补算关心的是"土干了多少、长了多少"，不应该在窗口刚打开的瞬间补出一屏花瓣，所以 `CatchUp` 分段推进时刻意跳过这一支。花瓣是纯数据（位置、速度、相位、寿命、颜色），渲染器只按当前风力和相位给它们加横向摆动；上限 160 条，超出时丢弃最早的。
+
+撒种反馈是第二条更短命的粒子通道。`Plant(species, slot)` 成功后立刻调 `Sow(slot, species)`：3 粒种子从槽位上方 12 像素处落下（`kind = 2`）、8 粒土从土面扬起（`kind = 0`，受 64 px/s² 重力）、4 个光点从嫩芽位置缓慢上浮（`kind = 1`，受力为 -9 px/s²，所以只会飘，不会掉），同时把 `SowSlot` 记下来、`SowGlow` 置 1。`SowGlow` 每帧按 `dt / 1.6` 衰减，用 `1 - SowGlow` 当进度驱动那个光环的扩散和十字闪光的上浮，衰减到 0 就什么都不画了；粒子在自己寿命耗尽或落到 `floorY` 以下时自行移除，列表上限 80 条。离线补算走的是另一条分支——`CatchUp` 里直接 `Sparks.Clear()` 并把 `SowGlow` 归零，否则隔夜回来会看到一屏晾了一整夜的土屑。
+
+存档只包含状态，不包含配置：`GardenState` 记录湿度、`nextId`、植株列表和 `savedAt`。`savedAt` 是 UTC ISO 8601 往返格式，重启时用它算出离线秒数并封顶 6 小时，再以 20 秒为步长补算，既不会因为关机一周而一次长满，也不会在补算时产生上百万次迭代。
+
+窗口职责是薄的一层：单击计时与 4 像素拖拽阈值复用了猫咪窗口的手感；命中测试用 `Renderer.Opaque(x, y)` 逐像素判断，透明处直接返回 `HTTRANSPARENT`，所以点击能从花圃的镂空处穿到下面的窗口。`RestPoint` 由花床矩形和当前缩放算出来，猫咪窗口再把它夹进工作区，花园本身不知道猫咪的尺寸。它同时挑一段到花园之后要接的动作——`PickInteraction()` 按当前状态加权，把结果交给 `VisitGarden(rest, clip)`，再由 `Arrived` 回调落到 `Play(clip)`；挑之前用 `clips.ContainsKey` 过一遍，缺这段动画的皮肤只是少一种互动，不会抛。
+
 ## 扩展边界与限制
 
 动作 ID 不在渲染器内写死；变形器类型和运动策略是小型内置扩展点。事件 ID 属于输入契约，事件映射与阈值在配置中。情境分类枚举目前为七种（含自由活动），各情境的动作集合与应用匹配均为外部数据。
@@ -49,6 +87,12 @@ UpdateLayeredWindow → transparent, non-activating pet window
 识别按明确应用规则 → 分组关键词推断 → 保守 idle 顺序进行。通用浏览器规则是基础类别，不抢占具体内容推断；全屏只提供弱分。`Classification` 包含类别、来源、置信分、类别分差和是否采纳，监视器仍要求连续样本才切换，信息获取失败或持续不确定也会稳定回到 idle。新情境通过 `contextChangeSeconds` 尽快重选自主动作，受保护交互不受打断。
 
 皮肤包目前采用像素矩阵组件；若引入 PNG 图集，需为资源加载层添加新的 sprite source，而无需修改行为系统。动画条是美术交付与预览产物，实际运行使用部件动画，避免丧失组合与变形能力。
+
+花园的美术没有 sprite 表，而是由物种参数驱动程序化绘制：`stems`、`leafPairs`、`leafRise`、`height`、`flower.form` 是数据契约，五种花型（`cluster` / `daisy` / `cup` / `poppy` / `spike`）与"不开花"分支是渲染器内的固定扩展点。植株的横向位置来自 `StemCurve()`：正弦弓形叠上风力与梢头回勾，茎和叶片读同一条曲线，因此看起来是弯的而不是一根竖线；每根侧茎有自己的基点、倾角、节点偏移与摆动相位，同一株不会出现三条平行线。加品种只需在 `config/garden.json` 里写参数；加新的花型才需要动 `GardenArt.cs`，并在 `Prepare()` 的白名单位置登记。
+
+植株描边走的是一条独立通道：`PixelSurface.Capture` 在画植株时顺手把剪影记进 `Mask`，画完由 `OutlinePlant()` 只对剪影外沿的一圈像素补上压暗的 `leafDark`。这比"把植株平移四次再叠"可靠——后者会把一像素宽的叶缝一起填掉，植株会糊成一个团。装饰同理：`sign`、`fairyLights`、`lantern`、`butterfly`、`bird`、`gnome`、`pinwheel`、`cloche`、`gazing`、`baubles`、`duck`、`mushrooms`、`stones`、`can` 各有独立的绘制函数，`type` 写错会在校验阶段就被拒绝，不会静默画成空气。其中灯笼与彩灯串归入后景，在植株之前绘制，其余都压在最上层。天上的飞鸟不占配置，`DrawSkyBirds(time)` 用时间段算位置，画在栅栏之前。
+
+花园也不参与情境识别，不读前台窗口，不写日志内容。它的所有随机性都来自 `GardenEngine` 内部的 `Random`，测试通过构造函数注入种子来复现。
 
 安装版通过 Inno Setup 原生引导：独立检查 .NET 4.8，在当前用户目录部署，固定 AppId 识别升级，旧配置先备份，保留用户设置与自定义皮肤，并阻止降级覆盖。卸载仅移除安装器管理的文件。缺库时使用随包携带且校验过的微软 Web 安装程序补装，已有运行库的安装过程不联网。
 
