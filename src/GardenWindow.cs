@@ -82,11 +82,12 @@ namespace Catcon {
         }
         void Visit(double dt){
             if(!pet.Settings.GardenVisits||!Visible)return;
+            var visits=Engine.Config.visits;
             visitAt-=dt;if(visitAt>0)return;
-            visitAt=150+random.NextDouble()*260;
+            visitAt=visits.minSeconds+random.NextDouble()*(visits.maxSeconds-visits.minSeconds);
             // 摸头、拖拽、扑击等受保护交互进行中时不来，等一会儿再抽。
             if(pet.Engine.Dragging||pet.Engine.Protected){visitAt=18+random.NextDouble()*30;return;}
-            if(random.NextDouble()<.55)pet.VisitGarden(RestPoint,PickInteraction());
+            if(random.NextDouble()<visits.chance)pet.VisitGarden(RestPoint,PickInteraction());
         }
         /// <summary>
         /// 到花园之后做点什么：凑近开花的植株闻一闻、接飘落的花瓣、在湿土上踩两下、

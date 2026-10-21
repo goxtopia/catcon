@@ -14,6 +14,12 @@
   ],
   "cursorNearPixels": 110,
   "cursorDwellSeconds": 5,
+  "pounce": {
+    "chance": 0.12,
+    "cooldownSeconds": 45,
+    "cursorSpeed": 260,
+    "maxDistance": 560
+  },
   "startleSpeed": 1100,
   "startleCooldown": 4,
   "repeatedStartleCount": 3,

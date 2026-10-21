@@ -1,6 +1,9 @@
 {
   "schemaVersion": 1,
-  "canvas": { "width": 112, "height": 80 },
+  "canvas": {
+    "width": 112,
+    "height": 80
+  },
   "maxPlants": 12,
   "initialPlants": 2,
   "moisture": {
@@ -9,17 +12,57 @@
     "dryBelow": 0.08,
     "wiltSeconds": 1500
   },
-  "spread": { "chancePerMinute": 0.07, "minMoisture": 0.25 },
+  "spread": {
+    "chancePerMinute": 0.07,
+    "minMoisture": 0.25
+  },
   "wind": {
     "minSeconds": 70,
     "maxSeconds": 210,
-    "chance": 0.62,
-    "durationSeconds": [3, 7],
-    "petalsPerSecond": 11
+    "chance": 0.55,
+    "durationSeconds": [
+      4,
+      9
+    ],
+    "petalsPerSecond": 3.4,
+    "petalCap": 40
   },
-  "grass": { "top": 36, "left": 4, "right": 108 },
-  "fence": { "top": 22, "spacing": 14 },
-  "bed": { "left": 10, "top": 40, "right": 102, "bottom": 76, "inset": 4 },
+  "birds": {
+    "perchSeconds": [
+      10,
+      24
+    ],
+    "awaySeconds": [
+      5,
+      12
+    ],
+    "flyChance": 0.42,
+    "hopChance": 0.38,
+    "flySeconds": 1.3,
+    "hopSeconds": 2.4,
+    "hopDistance": 9
+  },
+  "visits": {
+    "minSeconds": 90,
+    "maxSeconds": 260,
+    "chance": 0.6
+  },
+  "grass": {
+    "top": 36,
+    "left": 4,
+    "right": 108
+  },
+  "fence": {
+    "top": 22,
+    "spacing": 14
+  },
+  "bed": {
+    "left": 10,
+    "top": 40,
+    "right": 102,
+    "bottom": 76,
+    "inset": 4
+  },
   "colors": {
     "outline": "#2b2119",
     "soil": "#4c3728",
@@ -54,38 +97,190 @@
     "bird": "#7b91a8",
     "birdLight": "#e8f1f7",
     "birdWing": "#4f6076",
-    "beak": "#eab452"
+    "beak": "#eab452",
+    "birdSparrow": "#8a7a63",
+    "birdSparrowLight": "#efe6d4",
+    "birdSparrowWing": "#5f5245",
+    "birdRust": "#b0603c",
+    "birdRustLight": "#e9b28c",
+    "birdRustWing": "#7d4327",
+    "birdGold": "#d3aa54",
+    "birdGoldLight": "#f2e0ab",
+    "birdGoldWing": "#a2803d",
+    "birdDark": "#3a2f26",
+    "birdCoal": "#413b39",
+    "birdCoalLight": "#7b726c",
+    "birdCoalWing": "#262220"
   },
   "decorations": [
-    { "type": "sign", "x": 16, "y": 69 },
-    { "type": "fairyLights", "x": 14, "y": 27 },
-    { "type": "lantern", "x": 91, "y": 21 },
-    { "type": "butterfly", "x": 46, "y": 14 },
-    { "type": "bird", "x": 15, "y": 26 },
-    { "type": "bird", "x": 57, "y": 26, "flip": true },
-    { "type": "gnome", "x": 13, "y": 39 },
-    { "type": "baubles", "x": 54, "y": 48 },
-    { "type": "pinwheel", "x": 74, "y": 39 },
-    { "type": "gazing", "x": 99, "y": 39 },
-    { "type": "duck", "x": 94, "y": 52 },
-    { "type": "cloche", "x": 76, "y": 75 },
-    { "type": "mushrooms", "x": 34, "y": 74 },
-    { "type": "stones", "x": 57, "y": 75 },
-    { "type": "can", "x": 95, "y": 74, "flip": true }
+    {
+      "type": "sign",
+      "x": 16,
+      "y": 69
+    },
+    {
+      "type": "fairyLights",
+      "x": 14,
+      "y": 27
+    },
+    {
+      "type": "lantern",
+      "x": 91,
+      "y": 21
+    },
+    {
+      "type": "butterfly",
+      "x": 46,
+      "y": 14
+    },
+    {
+      "type": "gnome",
+      "x": 13,
+      "y": 39
+    },
+    {
+      "type": "baubles",
+      "x": 54,
+      "y": 48
+    },
+    {
+      "type": "pinwheel",
+      "x": 74,
+      "y": 39
+    },
+    {
+      "type": "gazing",
+      "x": 99,
+      "y": 39
+    },
+    {
+      "type": "duck",
+      "x": 94,
+      "y": 52
+    },
+    {
+      "type": "cloche",
+      "x": 76,
+      "y": 75
+    },
+    {
+      "type": "mushrooms",
+      "x": 34,
+      "y": 74
+    },
+    {
+      "type": "stones",
+      "x": 57,
+      "y": 75
+    },
+    {
+      "type": "can",
+      "x": 95,
+      "y": 74,
+      "flip": true
+    },
+    {
+      "type": "bird",
+      "x": 12,
+      "y": 26,
+      "variant": "sparrow",
+      "habit": "fly",
+      "flip": false
+    },
+    {
+      "type": "bird",
+      "x": 27,
+      "y": 26,
+      "variant": "blue",
+      "habit": "hop",
+      "flip": true
+    },
+    {
+      "type": "bird",
+      "x": 44,
+      "y": 26,
+      "variant": "rust",
+      "habit": "fly",
+      "flip": false
+    },
+    {
+      "type": "bird",
+      "x": 60,
+      "y": 26,
+      "variant": "gold",
+      "habit": "hop",
+      "flip": true
+    },
+    {
+      "type": "bird",
+      "x": 76,
+      "y": 26,
+      "variant": "coal",
+      "habit": "either",
+      "flip": false
+    }
   ],
   "slots": [
-    { "x": 24, "y": 54, "scale": 0.92 },
-    { "x": 44, "y": 54, "scale": 0.92 },
-    { "x": 64, "y": 54, "scale": 0.92 },
-    { "x": 84, "y": 54, "scale": 0.92 },
-    { "x": 30, "y": 63, "scale": 0.96 },
-    { "x": 50, "y": 63, "scale": 0.96 },
-    { "x": 70, "y": 63, "scale": 0.96 },
-    { "x": 90, "y": 63, "scale": 0.96 },
-    { "x": 24, "y": 72, "scale": 1.0 },
-    { "x": 44, "y": 72, "scale": 1.0 },
-    { "x": 64, "y": 72, "scale": 1.0 },
-    { "x": 84, "y": 72, "scale": 1.0 }
+    {
+      "x": 24,
+      "y": 54,
+      "scale": 0.92
+    },
+    {
+      "x": 44,
+      "y": 54,
+      "scale": 0.92
+    },
+    {
+      "x": 64,
+      "y": 54,
+      "scale": 0.92
+    },
+    {
+      "x": 84,
+      "y": 54,
+      "scale": 0.92
+    },
+    {
+      "x": 30,
+      "y": 63,
+      "scale": 0.96
+    },
+    {
+      "x": 50,
+      "y": 63,
+      "scale": 0.96
+    },
+    {
+      "x": 70,
+      "y": 63,
+      "scale": 0.96
+    },
+    {
+      "x": 90,
+      "y": 63,
+      "scale": 0.96
+    },
+    {
+      "x": 24,
+      "y": 72,
+      "scale": 1.0
+    },
+    {
+      "x": 44,
+      "y": 72,
+      "scale": 1.0
+    },
+    {
+      "x": 64,
+      "y": 72,
+      "scale": 1.0
+    },
+    {
+      "x": 84,
+      "y": 72,
+      "scale": 1.0
+    }
   ],
   "species": [
     {
@@ -102,7 +297,14 @@
       "stemColor": "#7ba25b",
       "leafColor": "#6d9450",
       "leafDark": "#4f7440",
-      "flower": { "form": "cluster", "color": "#b6a4e8", "color2": "#8b76c8", "core": "#efe3bb", "size": 2, "count": 3 }
+      "flower": {
+        "form": "cluster",
+        "color": "#b6a4e8",
+        "color2": "#8b76c8",
+        "core": "#efe3bb",
+        "size": 2,
+        "count": 3
+      }
     },
     {
       "id": "daisy",
@@ -118,7 +320,14 @@
       "stemColor": "#7ea45c",
       "leafColor": "#6d9450",
       "leafDark": "#517440",
-      "flower": { "form": "daisy", "color": "#fbf6e8", "color2": "#e0d8c2", "core": "#f0bf46", "size": 3, "count": 2 }
+      "flower": {
+        "form": "daisy",
+        "color": "#fbf6e8",
+        "color2": "#e0d8c2",
+        "core": "#f0bf46",
+        "size": 3,
+        "count": 2
+      }
     },
     {
       "id": "rosemary",
@@ -134,7 +343,11 @@
       "stemColor": "#8a7f57",
       "leafColor": "#5f7f57",
       "leafDark": "#46613f",
-      "flower": { "form": "none", "size": 1, "count": 0 }
+      "flower": {
+        "form": "none",
+        "size": 1,
+        "count": 0
+      }
     },
     {
       "id": "freesia",
@@ -150,7 +363,14 @@
       "stemColor": "#86a55f",
       "leafColor": "#6d9450",
       "leafDark": "#50743c",
-      "flower": { "form": "cup", "color": "#f3d478", "color2": "#dfae4e", "core": "#fff3c4", "size": 3, "count": 3 }
+      "flower": {
+        "form": "cup",
+        "color": "#f3d478",
+        "color2": "#dfae4e",
+        "core": "#fff3c4",
+        "size": 3,
+        "count": 3
+      }
     },
     {
       "id": "poppy",
@@ -166,7 +386,14 @@
       "stemColor": "#8fae62",
       "leafColor": "#7aa055",
       "leafDark": "#5d8043",
-      "flower": { "form": "poppy", "color": "#e2604c", "color2": "#b03f34", "core": "#34231d", "size": 4, "count": 1 }
+      "flower": {
+        "form": "poppy",
+        "color": "#e2604c",
+        "color2": "#b03f34",
+        "core": "#34231d",
+        "size": 4,
+        "count": 1
+      }
     },
     {
       "id": "lavender",
@@ -182,7 +409,14 @@
       "stemColor": "#7f9f63",
       "leafColor": "#6a8f55",
       "leafDark": "#4f7040",
-      "flower": { "form": "spike", "color": "#a68dd9", "color2": "#7f68b5", "core": "#d3c6f0", "size": 2, "count": 1 }
+      "flower": {
+        "form": "spike",
+        "color": "#a68dd9",
+        "color2": "#7f68b5",
+        "core": "#d3c6f0",
+        "size": 2,
+        "count": 1
+      }
     }
   ]
 }

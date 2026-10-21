@@ -83,6 +83,14 @@
 
 动作选择会等当前动作结束，`decisionSeconds` 控制最小随机决策间隔。允许自主移动时，`ambientChance` 额外以默认 8% 的概率覆盖常规选择，从 `ambientChoices` 加权抽取散步等动作；所以此时总选择概率为情境池 64.4%、日常池 27.6%、额外散步池 8%。禁止移动或游戏安静模式下没有这个覆盖。`events` 把输入事件映射到动作，可更换受惊、反复受惊、停留、拖拽、松手、摸头和追鼠标的对应动作。不要移除必要事件键。
 
+### 自己忍不住扑一下
+
+```json
+"pounce": { "chance": 0.12, "cooldownSeconds": 45, "cursorSpeed": 260, "maxDistance": 560 }
+```
+
+`pounce` 整段可省略。它和"受惊"是两件事：受惊是鼠标**冲向**猫造成的防御反应，`pounce` 是猫**主动**去扑那个快速移动的光标。每隔 `cooldownSeconds`（实际在 0.6～1.4 倍之间随机）才有一次判定机会，命中后按 `chance` 触发一次 `chase` 事件（也就是跑近、蓄力、跃出）。触发还要同时满足：光标速度超过 `cursorSpeed`、与猫的距离大于半个身位（避免扑到自己脚下）且小于 `maxDistance`、猫当前没在移动、没在受保护交互里、也不在游戏安静模式。刚触发过的那一轮不会再排队，所以调大 `chance` 也只是"更愿意扑"，不会变成一直追着鼠标跑。
+
 ## 条件后续与独立概率
 
 以下字段可省略，旧配置不增加任何规则。所有动作 ID、概率、权重、时间范围及情境均在加载时校验。
@@ -223,7 +231,7 @@
 | `fairyLights` | 挂在栅栏上的彩灯串（默认跨 46 像素） | 灯泡会依次明暗 |
 | `lantern` | 角落的金属小灯 | 一圈柔光 |
 | `butterfly` | 蝴蝶 | 在基准点附近飞，会扇翅 |
-| `bird` | 停在栅栏横杆上的小鸟（`y` 填它站的那一行，`flip` 换朝向） | 转头、抖尾巴，十秒一轮 |
+| `bird` | 停在栅栏横杆上的小鸟（`y` 填它站的那一行，`flip` 换朝向，`variant` 选毛色，`habit` 选习性） | 转头抖尾，会飞走或沿杆蹦跳 |
 | `gnome` | 尖帽子花园小矮人 | 静 |
 | `pinwheel` | 插在草地上的风车 | 叶片一直转 |
 | `cloche` | 罩着小苗的玻璃钟罩 | 静 |
@@ -236,23 +244,59 @@
 
 `lantern` 和 `fairyLights` 属于后景，画在植株之前，其余都在植株之后。蝴蝶的位置由引擎时间驱动（在基准点上下左右各几像素内飘），风和花瓣不会推动它。
 
+#### 小鸟的毛色与习性
+
+```json
+{ "type": "bird", "x": 44, "y": 26, "variant": "rust", "habit": "fly", "flip": false }
+```
+
+`variant` 取 `sparrow`（暖灰褐）、`blue`（蓝灰，就是原来的默认色）、`rust`（栗红）、`gold`（淡金）、`coal`（近黑，配亮黄喙），省略即 `sparrow`。对应的调色板键是 `birdSparrow` / `birdSparrowLight` / `birdSparrowWing`、`birdRust*`、`birdGold*`、`birdCoal*`，外加一顶 `birdDark` 做头顶；`blue` 直接复用最早的 `bird` / `birdLight` / `birdWing`。这些新键都是**可选**的——缺了就退回 `bird` 系列，所以老配置文件不会因为少几个颜色而整块花园加载失败。
+
+五种鸟不只是换色，`GardenArt.ShapeFor(variant)` 还给每种一套骨架参数：尾羽长度（2 短 / 4 长）、尾羽是否上翘、身体是否加一行（更圆胖）、是否收窄一格（更细长）、深色帽子的宽度（0～3 格）、喙长（1～2 格）、是否带白脸颊白胸。加第六种毛色时，除了在 `colors` 里补三个键、在 `Garden.BirdVariants` 里登记，还要在 `ShapeFor` 里给它一行——否则它会退化成麻雀的体形，只剩颜色不一样，八像素宽时看着还是同一只鸟。
+
+`flip` 决定朝向，也是镜像的唯一开关：尾羽、头、喙、眼睛、帽子全都跟着翻。它同时决定这只鸟往哪边飞、往哪边蹦——面朝左的鸟只会向左起飞，不会掉头。
+
+`habit` 取 `fly`（飞出画面再飞回来）、`hop`（沿横杆蹦三下换位置）、`stay`（只转头）、`either`（每个周期抛硬币，用 `birds.flyChance` / `birds.hopChance` 决定），省略即 `either`。每只鸟的种子由坐标算出，所以同一坐标的鸟永远同一套作息；把两只鸟放在同一 `x` 会得到同样的节奏，错开几像素就行。
+
+小鸟的作息不写进存档，全部由 `BirdSchedule.At(seed, x, y, flip, variant, habit, config, time)` 现算：`time` 为 0 时全部停在杆上。要调整节奏就改 `birds` 段：
+
+```json
+"birds": {
+  "perchSeconds": [10, 24],
+  "awaySeconds": [5, 12],
+  "flyChance": 0.42,
+  "hopChance": 0.38,
+  "flySeconds": 1.3,
+  "hopSeconds": 2.4,
+  "hopDistance": 9
+}
+```
+
+`perchSeconds` 是一次停留的时长区间；`awaySeconds` 是飞走之后在外面的时长；`flyChance` / `hopChance` 只对 `habit: "either"` 生效，两者之和不得超过 1，剩下的比例就是"这次不挪窝"；`flySeconds` 是起飞（或降落）单程的秒数；`hopSeconds` 是一串蹦跳的总时长；`hopDistance` 是单次最多挪多远（实际会在 0.6～1.4 倍之间取随机值）。`birds` 整段可以省略，程序会用同一组默认值。
+
 ### 湿度、分株与风
 
 ```json
 "moisture": { "fullSeconds": 2700, "thirstyBelow": 0.34, "dryBelow": 0.08, "wiltSeconds": 1500 },
 "spread": { "chancePerMinute": 0.07, "minMoisture": 0.25 },
-"wind": { "minSeconds": 70, "maxSeconds": 210, "chance": 0.62, "durationSeconds": [3, 7], "petalsPerSecond": 11 }
+"wind": { "minSeconds": 70, "maxSeconds": 210, "chance": 0.55, "durationSeconds": [4, 9], "petalsPerSecond": 3.4, "petalCap": 40 }
 ```
 
 `fullSeconds` 是湿度从 1 掉到 0 的秒数。`thirstyBelow` 是出现水滴徽章并开始拖慢生长的阈值，`dryBelow` 是生长几乎停滞（固定 12%）并开始累积枯萎的阈值，两者必须满足 `0 < dryBelow < thirstyBelow ≤ 1`。`wiltSeconds` 是枯萎从 0 涨到满的秒数，枯萎本身只会把生长再压掉最多 55%，不会倒退进度；浇水一次减 0.45。
 
 `spread.chancePerMinute` 是"每株盛开植物每分钟"的分株概率，0～1；`minMoisture` 是允许分株的最低湿度。实际效果是累加的，所以 0.07 配三株盛开约等于每分钟两成的概率。分株没有独立开关，把 `chancePerMinute` 设为 0 即可关闭。
 
-`wind` 只在有植株盛开时才有意义：每 `minSeconds`～`maxSeconds` 秒抽一次 `chance`，命中后持续 `durationSeconds` 区间内的随机秒数，按 `petalsPerSecond`（0～120）生成花瓣。花瓣颜色直接取开花品种的 `flower.color`，所以改品种花色会同时改掉花瓣。
+`wind` 只在有植株盛开时才有意义：每 `minSeconds`～`maxSeconds` 秒抽一次 `chance`，命中后持续 `durationSeconds` 区间内的随机秒数，按 `petalsPerSecond`（0～120）生成花瓣。`petalCap`（8～160，默认 48）是同屏上限，防止长时间刮风把画面铺满——现在的出厂值是每秒 3.4 片、上限 40，比早期"每秒 11 片、上限 160"淡得多，但每片花瓣都有独立的 `flutter`（下落节奏，一半时间在悬停）和 `spin`（翻面速度），横向还走 S 形，所以少而不呆。花瓣颜色取开花品种的 `flower.color`（约四分之一用 `color2`，再有一部分提亮一档），所以改品种花色会同时改掉花瓣。
 
 ### 设置与小窝
 
 花园的三个用户设置存在 `settings.json`：`gardenVisible`（是否显示窗口）、`gardenScale`（2.5 / 3 / 3.5 / 4 / 4.5 / 5 / 5.5 / 6，默认 3；档位定义在 `Preferences.GardenScales`，写入其他数值会被 `SnapGardenScale` 吸附到最近的档位，越界则夹到 2.5 或 6）、`gardenVisits`（蜜柑是否自己来访）。窗口位置 `gardenX` / `gardenY` 在拖拽后写入，异常值会被夹回当前工作区。如果要彻底去掉花园，把 `PetWindow` 构造里创建 `GardenWindow` 的那一段移除即可，猫咪本体不依赖它。
+
+来访的节奏在 `garden.json` 的 `visits` 里，不在 `settings.json` 里（`gardenVisits` 只是总开关）：`minSeconds`～`maxSeconds` 抽一次，命中 `chance` 就让蜜柑走过来。出厂值 90 / 260 / 0.6，比 1.7 时代的 150 / 410 / 0.55 勤快一些。摸头、拖拽、扑击等受保护交互进行中时这次来访会推迟十几秒重抽，不会把猫从用户手里抢走。
+
+```json
+"visits": { "minSeconds": 90, "maxSeconds": 260, "chance": 0.6 }
+```
 
 ## 校验与再导出
 

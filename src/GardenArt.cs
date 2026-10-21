@@ -368,7 +368,12 @@ namespace Catcon {
                 else if(d.type=="cloche")DrawCloche(d.x,d.y);
                 else if(d.type=="gazing")DrawGazing(d.x,d.y);
                 else if(d.type=="baubles")DrawBaubles(d.x,d.y);
-                else if(d.type=="bird")DrawBird(d.x,d.y,d.flip,engine.Time);
+                else if(d.type=="bird"){
+                    BirdFrame frame=BirdSchedule.At(d.seed,d.x,d.y,d.flip,d.variantIndex,d.habitCode,config.birds,engine.Time);
+                    if(!frame.visible)continue;
+                    if(frame.pose==2)DrawBirdFlying(frame.x,frame.y,frame.flip,frame.wingUp,frame.variant);
+                    else DrawBird(frame.x,frame.y,frame.flip,engine.Time,frame.variant,frame.pose==1);
+                }
             }
         }
         void DrawSign(int x,int y){
@@ -535,56 +540,142 @@ namespace Catcon {
             Marble(x,y,2,paintA);Marble(x+4,y+1,1,paintB);
             Marble(x+7,y-1,2,gold);Marble(x+2,y-3,1,glass);
         }
+        // 五种毛色：麻雀、知更鸟、山雀、金翅、乌鸫。
+        void BirdColors(int variant,out int body,out int belly,out int wing,out int cap){
+            switch(variant){
+                case 1: body=Optional("birdRust",birdColor);belly=Optional("birdRustLight",birdLight);wing=Optional("birdRustWing",birdWing);cap=Optional("birdDark",Shade(birdWing,.62));break;
+                case 2: body=birdColor;belly=birdLight;wing=birdWing;cap=Optional("birdDark",Shade(birdWing,.72));break;
+                case 3: body=Optional("birdGold",birdColor);belly=Optional("birdGoldLight",birdLight);wing=Optional("birdGoldWing",birdWing);cap=Optional("birdDark",Shade(birdWing,.62));break;
+                case 4: body=Optional("birdCoal",birdColor);belly=Optional("birdCoalLight",birdLight);wing=Optional("birdCoalWing",birdWing);cap=Optional("birdCoalWing",Shade(birdWing,.72));break;
+                default: body=Optional("birdSparrow",birdColor);belly=Optional("birdSparrowLight",birdLight);wing=Optional("birdSparrowWing",birdWing);cap=Optional("birdDark",Shade(birdWing,.72));break;
+            }
+        }
+        int Optional(string key,int fallback){int value;return colors.TryGetValue(key,out value)?value:fallback;}
+        /// <summary>
+        /// 每种鸟的骨架参数。只换配色的话，八像素宽的五只鸟读起来就是同一只换了衣服，
+        /// 所以这里连体形一起拉开：胖瘦、尾长、尾羽朝向、喙长、帽子宽度、白斑。
+        /// </summary>
+        struct BirdShape {
+            public int tail;      // 尾羽伸出几格：2 短、3 中、4 长
+            public int beak;      // 喙长 1..2 格
+            public int capW;      // 头顶深色帽子的宽度 0..3 格
+            public bool tailUp;   // 尾羽上翘（知更鸟）
+            public bool bulk;     // 多一行身子，更圆胖（知更鸟、乌鸫）
+            public bool slim;     // 身体收窄一格，更细长（金翅）
+            public bool patch;    // 白脸颊加白胸（山雀）
+        }
+        BirdShape ShapeFor(int variant){
+            switch(variant){
+                case 1: return new BirdShape{tail=2,tailUp=true,bulk=true,capW=1,beak=1};   // 知更鸟：圆胖、短尾上翘
+                case 2: return new BirdShape{tail=4,capW=3,beak=1,patch=true};             // 山雀：长尾、宽黑帽、白脸颊
+                case 3: return new BirdShape{tail=4,slim=true,capW=1,beak=2};              // 金翅：细长身、长尾、细长喙
+                case 4: return new BirdShape{tail=4,bulk=true,capW=0,beak=2};              // 乌鸫：圆胖、全深色、亮喙
+                default:return new BirdShape{tail=3,capW=2,beak=1};                        // 麻雀：最朴素的那只
+            }
+        }
         // 停在横杆上的小鸟：个头不大，但要有头有尾有喙，
         // 不然 4 个像素读起来只是块脏点。y 是它站着的那一行。
-        void DrawBird(int x,int y,bool flip,double time){
+        void DrawBird(int x,int y,bool flip,double time,int variant,bool airborne){
             int d=flip?-1:1;
             int beat=(int)(time*1.15)%10;
             bool glance=beat<5;          // 前半段侧头看远处，后半段转头看这边
             bool flick=beat>=7;          // 末尾抖两下尾巴
-            int body=birdColor,belly=birdLight,wing=birdWing;
+            int body,belly,wing,cap;
+            BirdColors(variant,out body,out belly,out wing,out cap);
+            BirdShape s=ShapeFor(variant);
             int dark=Shade(wing,.72);
-            // 尾羽：平时斜向下，抖尾巴的时候抬起来
-            int ty=flick?y-4:y-2,tip=ty+(flick?-1:1);
-            surface.Set(x+d*-3,ty,wing);
-            surface.Set(x+d*-4,tip,dark);
-            surface.Set(x+d*-3,tip,wing);
-            // 两条腿，站在杆子上
-            surface.Set(x+d*0,y-1,outline);surface.Set(x+d*0,y,outline);
-            surface.Set(x+d*2,y-1,outline);surface.Set(x+d*2,y,outline);
-            // 身体
-            surface.HLine(x+d*-1,x+d*2,y-3,body);
-            surface.HLine(x+d*-2,x+d*3,y-2,body);
-            surface.HLine(x+d*-1,x+d*2,y-1,body);
-            surface.Set(x+d*-2,y-3,body);surface.Set(x+d*3,y-1,body);
+            int bt=s.bulk?y-4:y-3;                 // 身体最高那一行
+            int hb=bt-3;                           // 头顶那一行
+            int hf=s.slim?2:3;                     // 头的正面边界
+            // 尾羽：麻雀短、山雀与金翅长、知更鸟短而上翘
+            int ty=flick?y-4:(s.tailUp?y-3:y-2);
+            int tip=ty+((flick||s.tailUp)?-1:1);
+            surface.Set(x+d*-2,ty,wing);
+            surface.Set(x+d*-3,tip,dark);
+            surface.Set(x+d*-2,tip,wing);
+            if(s.tail>=4)surface.Set(x+d*-4,ty-1,Shade(wing,.86));
+            // 两条腿，站在杆子上；蹦到空中时收起来
+            if(!airborne){
+                surface.Set(x+d*0,y-1,outline);surface.Set(x+d*0,y,outline);
+                surface.Set(x+d*2,y-1,outline);surface.Set(x+d*2,y,outline);
+            }else surface.Set(x+d*1,y-1,outline);
+            // 身体：胖瘦全靠这几行的宽度拉，三种体形不共用一套轮廓
+            if(s.bulk){
+                surface.HLine(x+d*-1,x+d*3,y-1,body);
+                surface.HLine(x+d*-2,x+d*3,y-2,body);
+                surface.HLine(x+d*-2,x+d*3,y-3,body);
+                surface.HLine(x+d*-1,x+d*2,bt,body);
+            }else if(s.slim){
+                surface.HLine(x+d*0,x+d*2,y-1,body);
+                surface.HLine(x+d*-1,x+d*2,y-2,body);
+                surface.HLine(x+d*0,x+d*2,bt,body);
+            }else{
+                surface.HLine(x+d*-1,x+d*2,y-1,body);
+                surface.HLine(x+d*-2,x+d*3,y-2,body);
+                surface.HLine(x+d*-1,x+d*2,bt,body);
+            }
+            surface.Set(x+d*-2,bt,body);surface.Set(x+d*3,y-1,body);
             // 胸腹的浅色，把体积撑起来
-            surface.Set(x+d*1,y-1,belly);surface.Set(x+d*2,y-2,belly);
-            surface.Set(x+d*2,y-3,belly);surface.Set(x+d*3,y-3,belly);
+            surface.Set(x+d*1,y-1,belly);
+            surface.Set(x+d*2,y-2,belly);
+            surface.Set(x+d*2,bt,belly);
+            surface.Set(x+d*3,bt,belly);
             surface.Set(x+d*2,y-1,Mix(body,belly,.5));
+            if(s.patch){                            // 山雀的白脸颊是它最好认的一处
+                surface.Set(x+d*2,hb+1,belly);
+                surface.Set(x+d*(hf-1),y-2,belly);
+            }
             // 翅膀：两片羽层加一条暗边
-            surface.Set(x+d*-1,y-2,wing);surface.Set(x+d*0,y-2,wing);surface.Set(x+d*0,y-3,wing);
+            surface.Set(x+d*-1,y-2,wing);surface.Set(x+d*0,y-2,wing);surface.Set(x+d*0,bt,wing);
             surface.Set(x+d*-1,y-1,Mix(wing,body,.45));
-            surface.Set(x+d*-1,y-3,Mix(wing,body,.25));
-            // 头
-            surface.HLine(x+d*1,x+d*3,y-6,body);
-            surface.HLine(x+d*1,x+d*3,y-5,body);
-            surface.Set(x+d*1,y-4,body);surface.Set(x+d*2,y-4,body);
-            surface.Set(x+d*1,y-6,Shift(body,20));surface.Set(x+d*2,y-6,Shift(body,12));
+            surface.Set(x+d*-1,bt,Mix(wing,body,.25));
+            // 头：头顶那一撮深色是山雀类的帽子，宽窄按种类来
+            surface.HLine(x+d*1,x+d*hf,hb,body);
+            surface.HLine(x+d*1,x+d*hf,hb+1,body);
+            surface.Set(x+d*1,hb+2,body);surface.Set(x+d*2,hb+2,body);
+            for(int i=1;i<=s.capW;i++)surface.Set(x+d*i,hb,cap);
             // 眼睛与喙，转头时眼位往喙那边挪一格
-            surface.Set(x+d*(glance?3:2),y-6,outline);
-            surface.Set(x+d*4,y-5,beakColor);
-            surface.Set(x+d*4,y-6,Shift(beakColor,18));
+            surface.Set(x+d*(glance?hf:hf-1),hb,outline);
+            surface.Set(x+d*(hf+1),hb+1,beakColor);
+            surface.Set(x+d*(hf+1),hb,Shift(beakColor,18));
+            if(s.beak>=2)surface.Set(x+d*(hf+2),hb+1,Shift(beakColor,8));
             // 杆子上的一点接触阴影
-            surface.Blend(x+d*1,y+1,Mix(woodDark,outline,.55),.32);
+            if(!airborne)surface.Blend(x+d*1,y+1,Mix(woodDark,outline,.55),.32);
+        }
+        // 飞起来的小鸟：身体压成一条横线（身、头、喙），翅膀在这条线的上方或下方张开。
+        // 横线是关键——纵向一多就会读成"两根杆顶着个球"，看不出是鸟。
+        void DrawBirdFlying(int x,int y,bool flip,bool wingUp,int variant){
+            int d=flip?-1:1;
+            int body,belly,wing,cap;
+            BirdColors(variant,out body,out belly,out wing,out cap);
+            BirdShape s=ShapeFor(variant);
+            // 身体一行：尾前留一格，头用深色收边，喙是最亮的一点
+            surface.Set(x-d,y,body);surface.Set(x,y,body);surface.Set(x+d,y,body);
+            surface.Set(x-d*2,y,wing);
+            if(s.tail>=4){                                  // 长尾的两种，飞起来后面拖一截
+                surface.Set(x-d*3,y,wing);
+                surface.Set(x-d*3,y+1,Shade(wing,.84));
+            }
+            surface.Set(x+d*2,y,s.capW>0?cap:body);
+            surface.Set(x+d*3,y,beakColor);
+            if(s.beak>=2)surface.Set(x+d*4,y,Shift(beakColor,12));
+            surface.Set(x,y+1,belly);
+            if(wingUp){
+                surface.Set(x-d,y-1,wing);surface.Set(x,y-1,Shift(wing,30));
+                surface.Set(x-d*2,y-2,wing);surface.Set(x+d,y-2,wing);
+            }else{
+                surface.Set(x-d,y+1,wing);surface.Set(x,y+1,Shift(wing,30));
+                surface.Set(x-d*2,y+2,wing);surface.Set(x+d,y+2,wing);
+            }
         }
         // 天上的小鸟：只画剪影，两只翅膀一上一下就是扇动。
         void DrawSkyBirds(double time){
-            for(int i=0;i<3;i++){
-                double period=27+i*13;
+            for(int i=0;i<4;i++){
+                double period=23+i*11;
                 double phase=((time+i*7.3)/period)%1.0;
-                if(phase>=.55)continue;                 // 飞过去之后就安静一会儿
-                int x=(int)Math.Round(-6+phase/.55*(surface.Width+12));
-                int y=3+i*4+(int)Math.Round(Math.Sin(time*.55+i*1.7)*1.6);
+                if(phase>=.52)continue;                 // 飞过去之后就安静一会儿
+                int x=(int)Math.Round(-6+phase/.52*(surface.Width+12));
+                int y=3+(i%3)*4+(int)Math.Round(Math.Sin(time*.55+i*1.7)*1.6);
                 bool up=((int)(time*(6.2+i*.9)))%2==0;
                 DrawSkyBird(x,y,up,i==1?Shade(birdColor,.82):birdColor);
             }
@@ -907,12 +998,36 @@ namespace Catcon {
             foreach(var petal in engine.Petals){
                 int x=(int)Math.Round(petal.x),y=(int)Math.Round(petal.y);
                 double fade=Math.Min(1,petal.life/Math.Max(.001,petal.maxLife*.45));
-                double alpha=Math.Max(.28,fade);
-                int accent=(int)Math.Round(petal.phase*3)%3;
-                surface.Blend(x,y,petal.color,alpha);
-                if(accent==0){surface.Blend(x+1,y,Shift(petal.color,26),alpha*.85);surface.Blend(x,y+1,Shade(petal.color,.8),alpha*.6);}
-                else if(accent==1){surface.Blend(x,y-1,Shift(petal.color,18),alpha*.8);surface.Blend(x+1,y,Shade(petal.color,.85),alpha*.65);}
-                else{surface.Blend(x+1,y,Shift(petal.color,22),alpha*.8);surface.Blend(x,y-1,Shade(petal.color,.9),alpha*.55);}
+                double alpha=Math.Max(.3,fade);
+                if(petal.kind==1){
+                    // 浇水的水珠：一竖两格，比花瓣更亮更直。
+                    surface.Blend(x,y,petal.color,alpha);
+                    surface.Blend(x,y-1,Shift(petal.color,30),alpha*.85);
+                    continue;
+                }
+                // 花瓣在空中会翻面：正视 → 侧身 → 薄边 → 反侧身，一路转着落，
+                // 所以同一片花瓣在几秒里是几种形状，比一成不变的方块有动感。
+                double age=1-petal.life/Math.Max(.001,petal.maxLife);
+                int face=((int)Math.Floor(petal.phase*2+age*petal.spin*4))%4;
+                if(face<0)face+=4;
+                int body=petal.color,light=Shift(petal.color,44);
+                if(face==0){
+                    surface.Blend(x,y,body,alpha);
+                    surface.Blend(x+1,y,body,alpha*.95);
+                    surface.Blend(x,y-1,light,alpha*.85);
+                    if(petal.size>=2)surface.Blend(x,y+1,Shade(body,.8),alpha*.8);
+                }else if(face==1){
+                    surface.Blend(x,y,body,alpha);
+                    surface.Blend(x+1,y-1,light,alpha*.8);
+                    if(petal.size>=2)surface.Blend(x+1,y,Shade(body,.86),alpha*.75);
+                }else if(face==2){
+                    surface.Blend(x,y,body,alpha);
+                    surface.Blend(x,y-1,Shade(body,.85),alpha*.85);
+                }else{
+                    surface.Blend(x,y,body,alpha);
+                    surface.Blend(x-1,y,light,alpha*.78);
+                    if(petal.size>=2)surface.Blend(x+1,y+1,Shade(body,.82),alpha*.7);
+                }
             }
             foreach(var d in config.decorations)if(d.type=="butterfly")DrawButterfly(d.x,d.y,engine.Time);
         }

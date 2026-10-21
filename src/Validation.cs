@@ -124,6 +124,21 @@ namespace Catcon {
                 check(engine.Animation.FaceRight&&Math.Abs(engine.X+engine.Width*(1-contactX)-input.Cursor.X)<2&&Math.Abs(engine.Y+engine.Width*contactY-input.Cursor.Y)<2,"Pounce aligns its drawn contact pixel with the cursor");
                 using(var impact=a.RenderAt("pounce",Animator.FrameStartSeconds(s.clips["pounce"],5)+.001,true))check(impact.GetPixel(28,27).A>0,"Contact anchor reaches a visible leading paw in the impact drawing");
                 check(engine.X>=0&&engine.X+128<=1600&&engine.Y>=0&&engine.Y+128<=900,"Pounce stays in working area");
+                // 自己找乐子：鼠标快速划过时偶尔会扑一下。把概率调到 1 验证机制本身，
+                // 再断言出厂配置里这仍然是个"小概率、长冷却"的念头。
+                var eager=Json.Read<BehaviorConfig>(Path.Combine(root,"config","behaviors.json"));
+                eager.pounce.chance=1;eager.pounce.cooldownSeconds=5;
+                var tempted=new BehaviorEngine(s,eager,17){X=400,Y=400,PixelScale=4};
+                var sweep=new InputFrame{WorkArea=new Rectangle(0,0,1600,900),Cursor=new Point(900,400),Context="coding"};
+                string previous="";int springs=0;
+                for(int j=0;j<900;j++){
+                    sweep.Cursor=new Point(900+(j%2)*180,400+(j%3)*30);
+                    tempted.Advance(.05,sweep);
+                    if(tempted.LastEvent=="chase"&&previous!="chase")springs++;
+                    previous=tempted.LastEvent;
+                }
+                check(springs>=1,"A passing cursor can tempt the cat into a spontaneous pounce");
+                check(config.pounce!=null&&config.pounce.chance>0&&config.pounce.chance<=.2&&config.pounce.cooldownSeconds>=30,"The shipped pounce stays a rare urge with a long cooldown");
                 Action<double,double,int,Point,Rectangle,string> leapCase=(startX,startY,scale,cursor,work,name)=>{
                     var pet=new BehaviorEngine(s,config,31){X=startX,Y=startY,PixelScale=scale};
                     var state=new InputFrame{WorkArea=work,Cursor=cursor,Reactions=false,Movement=false,Context="coding"};pet.Emit("chase");
@@ -206,7 +221,47 @@ namespace Catcon {
                 var gardenConfig=GardenConfig.Load(Path.Combine(root,"config","garden.json"));
                 check(gardenConfig.slots.Count>=gardenConfig.maxPlants&&gardenConfig.species.Count>=6,"Garden config offers enough slots and species");
                 check(gardenConfig.decorations.Select(d2=>d2.type).Distinct().Count()>=10,"The garden ships a varied set of small decorations");
-                check(gardenConfig.decorations.Count(d2=>d2.type=="bird")>=2&&gardenConfig.colors.ContainsKey("bird")&&gardenConfig.colors.ContainsKey("beak"),"The garden ships perched birds with their own palette");
+                check(gardenConfig.decorations.Count(d2=>d2.type=="bird")>=5&&gardenConfig.decorations.Where(d2=>d2.type=="bird").Select(d2=>d2.variantIndex).Distinct().Count()>=5,"The garden ships a flock of five birds in five different plumages");
+                var birdTune=gardenConfig.birds;
+                var perched=BirdSchedule.At(1234,12,26,false,0,3,birdTune,0);
+                check(perched.visible&&perched.pose==0&&perched.x==12&&perched.y==26,"Every bird starts the day sitting on the rail");
+                bool sawFlight=false,sawHop=false,sawGone=false;
+                for(int seed=1;seed<=24;seed++){
+                    for(double t=0;t<90;t+=.1){
+                        var frame=BirdSchedule.At(seed,12,26,false,seed%4,seed%4==0?1:(seed%4==1?2:0),birdTune,t);
+                        if(frame.pose==2)sawFlight=true;
+                        if(frame.pose==1)sawHop=true;
+                        if(!frame.visible)sawGone=true;
+                        if(sawFlight&&sawHop&&sawGone)break;
+                    }
+                    if(sawFlight&&sawHop&&sawGone)break;
+                }
+                check(sawFlight&&sawGone,"Birds now fly off the rail and come back later");
+                check(sawHop,"Birds also hop along the rail instead of always flying");
+                var once=BirdSchedule.At(7,12,26,false,1,1,birdTune,31.7);var twice=BirdSchedule.At(7,12,26,false,1,1,birdTune,31.7);
+                check(once.visible==twice.visible&&once.x==twice.x&&once.y==twice.y&&once.pose==twice.pose,"Bird behaviour is a pure function of time, not stored state");
+                bool ownSchedule=false;
+                for(int t=0;t<200&&!ownSchedule;t++){
+                    var firstBird=BirdSchedule.At(3,12,26,false,0,1,birdTune,t*.7);
+                    var secondBird=BirdSchedule.At(9,12,26,false,0,2,birdTune,t*.7);
+                    ownSchedule=firstBird.pose!=secondBird.pose||firstBird.x!=secondBird.x||firstBird.visible!=secondBird.visible;
+                }
+                check(ownSchedule,"Each bird keeps its own schedule instead of moving in lockstep");
+                // 一群鸟全都朝同一边会很像复制粘贴，所以栏杆上必须是真的有左有右。
+                var birdLine=gardenConfig.decorations.Where(d2=>d2.type=="bird").ToList();
+                check(birdLine.Count(b2=>b2.flip)>=2&&birdLine.Count(b2=>!b2.flip)>=2,"The flock faces both ways instead of all looking the same direction");
+                bool flyFollowsFacing=true;
+                foreach(var bird in birdLine){
+                    for(double t=0;t<160;t+=.2){
+                        var shot=BirdSchedule.At(bird.seed,bird.x,bird.y,bird.flip,bird.variantIndex,bird.habitCode,birdTune,t);
+                        if(!shot.visible||shot.pose!=2)continue;
+                        int sideways=shot.x-bird.x;
+                        if(sideways==0)continue;
+                        if((sideways>0)==bird.flip)flyFollowsFacing=false;   // 面朝左就该往左飞
+                        break;
+                    }
+                }
+                check(flyFollowsFacing,"A bird flies out the way it is facing instead of backwards");
                 check(gardenConfig.species.Count(s2=>s2.Flowering)>=4&&gardenConfig.species.Any(s2=>!s2.Flowering),"Garden mixes flowering and foliage species");
                 check(GardenEngine.StageName(.05,true)=="刚撒下"&&GardenEngine.StageName(.5,true)=="长叶"&&GardenEngine.StageName(.6,true)=="现蕾"&&GardenEngine.StageName(1,true)=="盛开"&&GardenEngine.StageName(1,false)=="茂盛","Garden growth stages read from the same thresholds");
                 var garden=new GardenEngine(gardenConfig,null,21);
@@ -261,6 +316,14 @@ namespace Catcon {
                 for(int i=0;i<9000&&!petals;i++){windEngine.Advance(.5);petals=windEngine.Petals.Count>0;}
                 check(petals,"Blooming flowers release petals when wind passes");
                 check(windEngine.Petals.All(p2=>p2.life>0),"Petals keep a finite lifetime");
+                check(gardenConfig.wind.petalsPerSecond<=4&&gardenConfig.wind.petalCap<=48,"Wind sheds a thinner veil of petals than before");
+                bool large=false;
+                for(int i=0;i<1400&&!large;i++){windEngine.Advance(.1);large=windEngine.Petals.Any(p2=>p2.size==2);}
+                check(large,"Some petals are drawn larger so the fall has depth");
+                check(windEngine.Petals.Where(p2=>p2.kind==0).All(p2=>p2.spin>0),"Flower petals tumble instead of falling as flat dots");
+                int peak=0;var gust=Spread(gardenConfig,5);
+                for(int i=0;i<12000;i++){gust.Advance(.25);peak=Math.Max(peak,gust.Petals.Count);}
+                check(peak>0&&peak<=gardenConfig.wind.petalCap,"Petal count stays under the configured ceiling (peak "+peak+")");
                 var foliageEngine=Foliage(gardenConfig,5);
                 for(int i=0;i<12000;i++)foliageEngine.Advance(.5);
                 check(foliageEngine.Petals.Count==0,"Foliage-only species never shed petals");
@@ -276,7 +339,36 @@ namespace Catcon {
                     check(!renderer.Opaque(1,1)&&!renderer.Opaque(gardenConfig.canvas.width-2,1),"Garden corners stay transparent");
                     int sky=0;for(int sx=2;sx<gardenConfig.canvas.width-2;sx++)for(int sy=1;sy<gardenConfig.fence.top-2;sy++)if(renderer.Opaque(sx,sy))sky++;
                     check(!renderer.Opaque(1,1)&&sky<60,"The sky above the fence stays open apart from a few birds");
-                    check(renderer.Opaque(16,22)&&renderer.Opaque(18,20),"A perched bird reads above the fence rail");
+                    var resting=new GardenEngine(gardenConfig,null,21);
+                    renderer.Render(resting);
+                    check(renderer.Opaque(12,24)&&renderer.Opaque(14,21),"A perched bird reads above the fence rail");
+                    // 五只鸟要穿五件不同的衣服：直接读它们各自身体那一格的颜色，
+                    // 光看配置里写了五个 variant 不够——配色回落成默认值时画面照样全是克隆。
+                    var plumage=new System.Collections.Generic.HashSet<int>();
+                    foreach(var bird in gardenConfig.decorations.Where(d2=>d2.type=="bird"))plumage.Add(renderer.PixelAt(bird.x,bird.y-1));
+                    check(plumage.Count>=5,"Each bird wears its own plumage instead of five recolours of one bird ("+plumage.Count+" colours)");
+                    // 让一只鸟飞出栏杆那一帧单独渲染一次：飞行姿态必须真的画在画布上，
+                    // 不能只是"从杆上消失"。取样点取 0.25 秒的整数倍，和引擎步长对齐。
+                    double flightAt=-1;var flightFrame=new BirdFrame();
+                    foreach(var bird in gardenConfig.decorations.Where(d2=>d2.type=="bird")){
+                        for(double t=0;t<180&&flightAt<0;t+=.25){
+                            var birdNow=BirdSchedule.At(bird.seed,bird.x,bird.y,bird.flip,bird.variantIndex,bird.habitCode,birdTune,t);
+                            if(!birdNow.visible||birdNow.pose!=2)continue;
+                            if(birdNow.x<6||birdNow.x>gardenConfig.canvas.width-6||birdNow.y<4||birdNow.y>gardenConfig.fence.top)continue;
+                            flightAt=t;flightFrame=birdNow;
+                        }
+                        if(flightAt>0)break;
+                    }
+                    check(flightAt>0,"Birds actually leave the rail and cross the sky on the way out (first seen at "+flightAt+"s)");
+                    if(flightAt>0){
+                        var flying=new GardenEngine(gardenConfig,null,21);
+                        for(int i=0;i<(int)Math.Round(flightAt/.25);i++)flying.Advance(.25);
+                        renderer.Render(flying);
+                        int around=0;
+                        for(int dy=-3;dy<=3;dy++)for(int dx=-4;dx<=4;dx++)if(renderer.Opaque(flightFrame.x+dx,flightFrame.y+dy))around++;
+                        check(around>=3,"A flying bird is drawn in the air on its way out ("+around+" pixels)");
+                    }
+                    renderer.Render(garden);
                     var frame=renderer.Frame(2);
                     check(frame.Width==gardenConfig.canvas.width*2&&frame.Height==gardenConfig.canvas.height*2,"Garden frames scale by whole pixels");
                     var half=renderer.Frame(1.5);

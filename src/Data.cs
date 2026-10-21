@@ -129,14 +129,24 @@ namespace Catcon {
         public double[] intervalSeconds {get;set;}public string[] contexts {get;set;}
         public bool quietGames {get;set;}
     }
+    /// <summary>
+    /// 自己忍不住扑一下鼠标：小概率、长冷却。和受惊不同，这是主动的玩心，
+    /// 所以要求鼠标动得够快、离得不远也不近，扑完还得歇一会儿。
+    /// </summary>
+    public sealed class PounceRule {
+        public double chance {get;set;} public double cooldownSeconds {get;set;}
+        public double cursorSpeed {get;set;} public double maxDistance {get;set;}
+        public PounceRule(){chance=.12;cooldownSeconds=45;cursorSpeed=260;maxDistance=560;}
+    }
     public sealed class BehaviorConfig {
-        public BehaviorConfig(){contextChance=.7;followUps=new Dictionary<string,FollowUpRule>();independentActions=new List<IndependentAction>();}
+        public BehaviorConfig(){contextChance=.7;followUps=new Dictionary<string,FollowUpRule>();independentActions=new List<IndependentAction>();pounce=new PounceRule();}
         public int schemaVersion {get;set;} public double[] decisionSeconds {get;set;}
         public double contextChangeSeconds {get;set;}
         public double contextChance {get;set;}
         public double ambientChance {get;set;}public List<Choice> ambientChoices {get;set;}
         public double cursorNearPixels {get;set;} public double cursorDwellSeconds {get;set;}
         public double startleSpeed {get;set;} public double startleCooldown {get;set;}
+        public PounceRule pounce {get;set;}
         public int repeatedStartleCount {get;set;} public double repeatedStartleWindow {get;set;}
         public Dictionary<string,string> events {get;set;} public Dictionary<string,List<Choice>> contexts {get;set;}
         public Dictionary<string,FollowUpRule> followUps {get;set;}
@@ -146,6 +156,7 @@ namespace Catcon {
             Skin.Require(contextChangeSeconds>=0&&contextChangeSeconds<=10,"Invalid context change delay");
             Skin.Require(contextChance>=0&&contextChance<=1,"Invalid context choice probability");
             Skin.Require(cursorNearPixels>0&&cursorDwellSeconds>0&&startleCooldown>0&&startleSpeed>0&&repeatedStartleCount>1&&repeatedStartleWindow>0,"Invalid reaction thresholds");
+            if(pounce!=null)Skin.Require(pounce.chance>=0&&pounce.chance<=1&&pounce.cooldownSeconds>=5&&pounce.cursorSpeed>0&&pounce.maxDistance>120,"Invalid spontaneous pounce rule");
             foreach(string ev in new[]{"startle","repeatedStartle","dwell","drag","release","pet","chase","idle"})Skin.Require(events.ContainsKey(ev)&&s.clips.ContainsKey(events[ev]),"Missing behavior event: "+ev);
             foreach(string category in ContextNames.All.Keys)Skin.Require(contexts.ContainsKey(category),"Missing context: "+category);
             foreach(var c in contexts.Values)Skin.Require(c.Count>0&&c.All(x=>x.weight>0&&s.clips.ContainsKey(x.clip)),"Invalid behavior choice");

@@ -33,6 +33,32 @@ namespace Catcon {
                 using(var zoom=renderer.Region(38,42,30,32,12)){
                     Save(zoom,Path.Combine(destination,"garden-sowing-zoom.png"));
                 }
+                // 五只鸟排队站在杆上的样子，放大一张，方便一眼看出体形与朝向的差别。
+                var lineup=Scene(config,Full);
+                renderer.Render(lineup);
+                using(var rail=renderer.Region(6,15,78,16,13)){
+                    Save(rail,Path.Combine(destination,"garden-birds-rail.png"));
+                }
+                // 小鸟飞出栏杆的那一刻：整园一张，再出一张局部放大图。
+                var flock=Scene(config,Full);
+                double flightAt=-1;var airborneBird=new BirdFrame();
+                foreach(var bird in config.decorations.Where(d=>d.type=="bird")){
+                    for(double t=0;t<200&&flightAt<0;t+=.25){
+                        BirdFrame shot=BirdSchedule.At(bird.seed,bird.x,bird.y,bird.flip,bird.variantIndex,bird.habitCode,config.birds,t);
+                        if(!shot.visible||shot.pose!=2)continue;
+                        if(shot.x<14||shot.x>config.canvas.width-14||shot.y<6||shot.y>config.fence.top)continue;
+                        flightAt=t;airborneBird=shot;
+                    }
+                    if(flightAt>0)break;
+                }
+                if(flightAt>0){
+                    for(int i=0;i<(int)Math.Round(flightAt/.25);i++)flock.Advance(.25);
+                    renderer.Render(flock);
+                    Save(renderer.Frame(4),Path.Combine(destination,"garden-birds.png"));
+                    using(var zoom=renderer.Region(airborneBird.x-12,Math.Max(0,airborneBird.y-10),24,20,14)){
+                        Save(zoom,Path.Combine(destination,"garden-birds-zoom.png"));
+                    }
+                }
                 foreach(var species in config.species){
                     var stages=Scene(config,delegate(List<PlantSeed> list){
                         double[] steps=new double[]{0,0,.12,.34,.56,.78,1};
@@ -66,9 +92,12 @@ namespace Catcon {
         static void AddPetals(GardenEngine engine,GardenConfig config){
             var colors=new[]{"#e2604c","#b6a4e8","#f3d478","#a68dd9","#fbf6e8"};
             var random=new Random(3);
-            for(int i=0;i<70;i++)engine.Petals.Add(new GardenPetal{
+            // 现在起风是"一层薄花瓣"，导出图也按同样的密度摆，别把文档画成比以前还满。
+            for(int i=0;i<24;i++)engine.Petals.Add(new GardenPetal{
                 x=12+random.NextDouble()*88,y=20+random.NextDouble()*52,
                 vx=0,vy=4,life=2.5,maxLife=5,phase=random.NextDouble()*6.28,
+                spin=.5+random.NextDouble()*1.6,flutter=.5+random.NextDouble()*1.1,
+                size=random.NextDouble()<.26?2:1,kind=0,
                 color=ColorTranslator.FromHtml(colors[random.Next(colors.Length)]).ToArgb()});
         }
         static void Save(Bitmap bitmap,string path){

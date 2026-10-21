@@ -15,6 +15,9 @@ namespace Catcon {
     public sealed class GardenWind {
         public double minSeconds {get;set;} public double maxSeconds {get;set;} public double chance {get;set;}
         public double[] durationSeconds {get;set;} public double petalsPerSecond {get;set;}
+        /// <summary>同屏最多几片，防止长时间刮风堆满画面。</summary>
+        public int petalCap {get;set;}
+        public GardenWind(){petalCap=48;}
     }
     public sealed class GardenGrass { public int top {get;set;} public int left {get;set;} public int right {get;set;} }
     public sealed class GardenFence { public int top {get;set;} public int spacing {get;set;} }
@@ -35,7 +38,20 @@ namespace Catcon {
     public sealed class GardenDecoration {
         public string type {get;set;} public int x {get;set;} public int y {get;set;}
         public bool flip {get;set;} public double scale {get;set;}
+        /// <summary>小鸟的毛色，见 BirdVariants；其他装饰忽略这个字段。</summary>
+        public string variant {get;set;}
+        /// <summary>小鸟的习性：fly / hop / stay / either，默认 either 抛硬币。</summary>
+        public string habit {get;set;}
+        [System.Web.Script.Serialization.ScriptIgnore] public int variantIndex;
+        [System.Web.Script.Serialization.ScriptIgnore] public int habitCode;
+        /// <summary>由坐标算出的稳定种子，让每只鸟的作息不一样又不会每帧乱跳。</summary>
+        [System.Web.Script.Serialization.ScriptIgnore] public int seed;
         public GardenDecoration(){scale=1;}
+    }
+    /// <summary>蜜柑自己溜达到花园来的节奏。</summary>
+    public sealed class GardenVisits {
+        public double minSeconds {get;set;} public double maxSeconds {get;set;} public double chance {get;set;}
+        public GardenVisits(){minSeconds=90;maxSeconds=260;chance=.6;}
     }
     public sealed class GardenSlot { public int x {get;set;} public int y {get;set;} public double scale {get;set;} }
 
@@ -44,6 +60,7 @@ namespace Catcon {
         public int maxPlants {get;set;} public int initialPlants {get;set;}
         public GardenMoisture moisture {get;set;} public GardenSpread spread {get;set;} public GardenWind wind {get;set;}
         public GardenGrass grass {get;set;} public GardenFence fence {get;set;} public GardenBed bed {get;set;}
+        public GardenBirdConfig birds {get;set;} public GardenVisits visits {get;set;}
         public Dictionary<string,string> colors {get;set;}
         public List<GardenDecoration> decorations {get;set;}
         public List<GardenSlot> slots {get;set;}
@@ -52,6 +69,8 @@ namespace Catcon {
         static readonly string[] Effects=new[]{"cluster","cup","poppy","spike","daisy","none"};
         static readonly string[] Decorations=new[]{"sign","lantern","mushrooms","stones","can","butterfly",
             "fairyLights","gnome","duck","pinwheel","cloche","gazing","baubles","bird"};
+        static readonly string[] BirdVariants=new[]{"sparrow","rust","blue","gold","coal"};
+        static readonly string[] BirdHabits=new[]{"either","fly","hop","stay"};
         static readonly string[] RequiredColors=new[]{"outline","soil","soilWet","soilDry","soilDark","soilLight","grass","grassLight","grassDark","wood","woodLight","woodDark","stone","stoneDark","metal","metalLight","metalDark","glow","water","waterLight","mushroomCap","mushroomStem","butterfly","butterflyWing","glass","glassLight","ceramic","paintA","paintB","gold","bird","birdLight","birdWing","beak"};
         public static GardenConfig Load(string path){
             var config=Json.Read<GardenConfig>(path);
@@ -60,7 +79,16 @@ namespace Catcon {
         }
         public void Prepare(){
             Validate();
+            if(birds==null)birds=new GardenBirdConfig();
+            if(visits==null)visits=new GardenVisits();
             ById=species.ToDictionary(s=>s.id,s=>s);
+            if(decorations!=null)foreach(var d in decorations){
+                d.seed=(d.x*7919+d.y*104729+d.type.Length*131)%1000003;
+                if(d.type=="bird"){
+                    d.variantIndex=Array.IndexOf(BirdVariants,d.variant??"sparrow");
+                    d.habitCode=Math.Max(0,Array.IndexOf(BirdHabits,d.habit??"either"));
+                }
+            }
         }
         public void Validate(){
             Skin.Require(schemaVersion==1,"Unsupported garden schema");
@@ -72,6 +100,7 @@ namespace Catcon {
             Skin.Require(wind.minSeconds>0&&wind.maxSeconds>=wind.minSeconds&&wind.chance>=0&&wind.chance<=1,"Invalid garden wind timing");
             Skin.Require(wind.durationSeconds!=null&&wind.durationSeconds.Length==2&&wind.durationSeconds[0]>0&&wind.durationSeconds[1]>=wind.durationSeconds[0],"Invalid garden wind duration");
             Skin.Require(wind.petalsPerSecond>=0&&wind.petalsPerSecond<=120,"Invalid petal rate");
+            Skin.Require(wind.petalCap>=8&&wind.petalCap<=160,"Invalid petal cap");
             Skin.Require(grass.right>grass.left&&grass.top>0&&fence.top>=0&&fence.spacing>=6,"Invalid garden grass or fence geometry");
             Skin.Require(bed.right>bed.left&&bed.bottom>bed.top&&bed.inset>0&&bed.top>fence.top&&bed.bottom<canvas.height,"Garden bed must sit inside the canvas below the fence");
             Skin.Require(colors!=null&&RequiredColors.All(colors.ContainsKey),"Missing garden colors: "+String.Join(",",RequiredColors.Where(c=>colors==null||!colors.ContainsKey(c))));
@@ -85,7 +114,13 @@ namespace Catcon {
             if(decorations!=null)foreach(var d in decorations){
                 Skin.Require(d!=null&&Decorations.Contains(d.type),"Unknown garden decoration: "+(d==null?"null":d.type));
                 Skin.Require(d.x>=0&&d.x<canvas.width&&d.y>0&&d.y<=canvas.height&&d.scale>=.5&&d.scale<=2,"Garden decoration outside the canvas: "+d.type);
+                if(d.type=="bird"){
+                    Skin.Require(String.IsNullOrEmpty(d.variant)||BirdVariants.Contains(d.variant),"Unknown bird variant: "+d.variant);
+                    Skin.Require(String.IsNullOrEmpty(d.habit)||BirdHabits.Contains(d.habit),"Unknown bird habit: "+d.habit);
+                }
             }
+            if(birds!=null)birds.Validate();
+            if(visits!=null)Skin.Require(visits.minSeconds>0&&visits.maxSeconds>=visits.minSeconds&&visits.chance>=0&&visits.chance<=1,"Invalid garden visit timing");
             Skin.Require(species!=null&&species.Count>0&&species.Count<=24,"Garden needs 1..24 species");
             Skin.Require(species.Select(s=>s.id).Distinct().Count()==species.Count,"Duplicate garden species id");
             foreach(var s in species){
@@ -120,7 +155,16 @@ namespace Catcon {
         public GardenPlant(string species,int slot,double growth,long id){this.species=species;this.slot=slot;this.growth=growth;this.id=id;}
     }
     public sealed class GardenPetal {
-        public double x,y,vx,vy,life,maxLife,phase;public int color;public bool fading;
+        public double x,y,vx,vy,life,maxLife,phase;
+        public int color;public bool fading;
+        /// <summary>翻面速度：花瓣在空中会翻过来，单像素的朝向跟着变。</summary>
+        public double spin;
+        /// <summary>飘摆节奏。每片不一样，凑在一起才不像一起下落的一排点。</summary>
+        public double flutter;
+        /// <summary>1 = 小花瓣，2 = 大一点的花瓣（远景/近景的层次）。</summary>
+        public int size;
+        /// <summary>0 = 花瓣，1 = 浇水的水珠。</summary>
+        public int kind;
     }
     /// <summary>撒种时的一次性粒子：种子落下、土粒抛起、嫩芽上的光点。</summary>
     public sealed class GardenSpark {
@@ -275,7 +319,8 @@ namespace Catcon {
                 x=16+random.NextDouble()*(Config.bed.right-Config.bed.left-12),
                 y=Config.bed.top+6+random.NextDouble()*10,
                 vx=(random.NextDouble()-.5)*6,vy=26+random.NextDouble()*16,
-                life=.5+random.NextDouble()*.35,maxLife=.85,phase=random.NextDouble()*6.28,color=Colors["waterLight"].ToArgb()});
+                life=.5+random.NextDouble()*.35,maxLife=.85,phase=random.NextDouble()*6.28,
+                kind=1,color=Colors["waterLight"].ToArgb()});
         }
         Dictionary<string,Color> parsed;
         Dictionary<string,Color> Colors {
@@ -366,26 +411,43 @@ namespace Catcon {
             GardenSlot slot=Config.slots[plant.slot];
             double tipY=slot.y-species.height*slot.scale*(0.6+random.NextDouble()*.4);
             double tipX=slot.x+(random.NextDouble()-.5)*6;
-            double sway=1+random.NextDouble()*.6;
+            // 花瓣在花色和副色之间取，偶尔提亮一点：同一株落下来的花瓣也有深有浅。
+            int color=ColorTranslator.FromHtml(random.NextDouble()<.72?species.flower.color:species.flower.color2).ToArgb();
+            if(random.NextDouble()<.24)color=Lighten(color,38);
             Petals.Add(new GardenPetal{
                 x=tipX,y=tipY,
-                vx=WindDirection*(9+random.NextDouble()*14),
-                vy=3+random.NextDouble()*7,
-                life=2.6+random.NextDouble()*2.6,maxLife=5.2,phase=random.NextDouble()*6.28,
-                color=ColorTranslator.FromHtml(species.flower.color).ToArgb()});
-            Petals[Petals.Count-1].vx*=sway;
+                vx=WindDirection*(4+random.NextDouble()*8),
+                vy=2+random.NextDouble()*3.5,
+                life=3.4+random.NextDouble()*3.4,maxLife=6.8,phase=random.NextDouble()*6.28,
+                spin=.5+random.NextDouble()*1.6,
+                flutter=.5+random.NextDouble()*1.1,
+                size=random.NextDouble()<.26?2:1,kind=0,
+                color=color});
         }
         void UpdatePetals(double dt){
             for(int i=Petals.Count-1;i>=0;i--){
                 var p=Petals[i];
                 p.life-=dt;
-                if(p.life<=0||p.x<-6||p.x>Config.canvas.width+6||p.y>Config.canvas.height+4){Petals.RemoveAt(i);continue;}
-                p.vx+=WindDirection*6*dt;
-                p.vy=Math.Min(p.vy+9*dt,26);
-                p.x+=(p.vx+Math.Sin(p.phase+p.life*4.5)*9)*dt;
+                if(p.life<=0||p.x<-8||p.x>Config.canvas.width+8||p.y>Config.canvas.height+4){Petals.RemoveAt(i);continue;}
+                if(p.kind==1){
+                    // 水珠直着落，砸到土上就没了。
+                    p.vy=Math.Min(p.vy+110*dt,150);
+                    p.x+=p.vx*dt;p.y+=p.vy*dt;continue;
+                }
+                p.vx+=WindDirection*4.5*dt;
+                // 每片都有自己的节奏：一阵快落、一阵几乎悬停，横向再摆一个 S 形，
+                // 所以少几片也不显得空，反而比"一把一起往下掉"更像被风吹散的花瓣。
+                double terminal=10.5+5.5*Math.Sin(p.phase+p.life*p.flutter*2.4);
+                p.vy+=(terminal-p.vy)*Math.Min(1,dt*(p.vy<terminal?3.2:5.0));
+                p.x+=(p.vx+Math.Sin(p.phase*1.3+p.life*3.1)*11)*dt;
                 p.y+=p.vy*dt;
             }
-            if(Petals.Count>160)Petals.RemoveRange(0,Petals.Count-160);
+            int cap=Config.wind.petalCap>=8?Config.wind.petalCap:48;
+            if(Petals.Count>cap)Petals.RemoveRange(0,Petals.Count-cap);
+        }
+        static int Lighten(int argb,int amount){
+            int r=Math.Min(255,((argb>>16)&255)+amount),g=Math.Min(255,((argb>>8)&255)+amount),b=Math.Min(255,(argb&255)+amount);
+            return ((argb>>24)&255)<<24|r<<16|g<<8|b;
         }
         public double AverageGrowth{get{return State.plants.Count==0?0:State.plants.Average(p=>p.growth);}}
         public GardenPlant Soonest{get{return State.plants.OrderByDescending(p=>p.growth).FirstOrDefault();}}

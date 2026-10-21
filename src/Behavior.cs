@@ -18,7 +18,7 @@ namespace Catcon {
         /// <summary>走到外部目的地（例如花圃）后触发一次，用来接着做一段互动。</summary>
         public Action Arrived;
         public string LastEvent {get;private set;}public string Context {get;private set;}
-        double clock,activityClock,nextDecision,lockedUntil,lastStartle=-100,dwell;
+        double clock,activityClock,nextDecision,lockedUntil,lastStartle=-100,dwell,nextPounce=26;
         Point previousCursor;bool hadCursor;
         PointF? target,arrivalTarget;PointF leapStart;string motionClip;
         public bool Moving {get{return target.HasValue;}}
@@ -49,6 +49,15 @@ namespace Catcon {
                 }else if(distance<config.cursorNearPixels){
                     dwell+=dt;if(dwell>=config.cursorDwellSeconds&&input.Movement){Emit("dwell");dwell=0;}
                 }else dwell=0;
+            }
+            // 自己找乐子：鼠标划过时小概率扑一下。冷却很长，所以更像"偶尔手痒"，
+            // 不是每次动鼠标都追着跑；也不在移动、受保护交互或游戏安静模式下触发。
+            if(!quiet&&input.Reactions&&allowMovement&&hadCursor&&!Moving&&clock>=lockedUntil&&clock>=nextPounce){
+                var pounce=config.pounce;
+                double speed=Distance(input.Cursor.X,input.Cursor.Y,previousCursor.X,previousCursor.Y)/dt;
+                double away=Distance(input.Cursor.X,input.Cursor.Y,X+Width*.5,Y+Width*.6);
+                nextPounce=clock+pounce.cooldownSeconds*(.6+random.NextDouble()*.8);
+                if(speed>pounce.cursorSpeed&&away>Width*.9&&away<pounce.maxDistance&&random.NextDouble()<pounce.chance)Emit("chase");
             }
             previousCursor=input.Cursor;hadCursor=true;
             UpdateMotion(dt,input,quiet);
